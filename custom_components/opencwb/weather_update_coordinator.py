@@ -172,39 +172,50 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self, weather_response, forecast_type: str
     ) -> list:
         """Return the raw forecast list for the given type from API response."""
-        # One Call 2.5 stores hourly and daily separately
+        # One Call stores hourly and daily separately.
         if self.forecast_mode == FORECAST_MODE_ONECALL_HOURLY:
-            return list(weather_response.forecast_hourly)
+            return list(weather_response.forecast_hourly) if forecast_type == "hourly" else []
         if self.forecast_mode == FORECAST_MODE_ONECALL_DAILY:
-            return list(weather_response.forecast_daily)
+            return list(weather_response.forecast_daily) if forecast_type == "daily" else []
 
-        # Legacy API – interval determines which forecast we get
-        if forecast_type == "hourly":
-            return list(weather_response.forecast)
-        # Legacy daily or freedaily
+        # Legacy API returns one forecast collection according to selected mode.
         return list(weather_response.forecast)
 
     def _convert_forecast_entry(self, entry) -> Forecast | None:
         """Convert a single raw forecast entry into a Forecast dataclass."""
         try:
-            precip = self._calc_precipitation(entry.rain, entry.snow)
-            precip_prob = round(entry.precipitation_probability * 100)
-            wind_speed = entry.wind().get("speed")
-            wind_bearing = entry.wind().get("deg")
+            rain = getattr(entry, "rain", None)
+            snow = getattr(entry, "snow", None)
+            precip = self._calc_precipitation(rain, snow)
+
+            precip_prob_raw = getattr(entry, "precipitation_probability", None)
+            precip_prob = (
+                round(precip_prob_raw * 100)
+                if precip_prob_raw is not None
+                else None
+            )
+
+            wind_dict = entry.wind() if hasattr(entry, "wind") else {}
+            wind_speed = wind_dict.get("speed") if isinstance(wind_dict, dict) else None
+            wind_bearing = wind_dict.get("deg") if isinstance(wind_dict, dict) else None
+            wind_gust = wind_dict.get("gust") if isinstance(wind_dict, dict) else None
+
             clouds = getattr(entry, "clouds", None)
-            feels_like = entry.temperature("celsius").get("feels_like")
             humidity = getattr(entry, "humidity", None)
 
-            temp_dict = entry.temperature("celsius")
+            temp_dict = entry.temperature("celsius") if hasattr(entry, "temperature") else {}
+            temp_dict = temp_dict or {}
+            feels_like = temp_dict.get("feels_like")
             temp_high = temp_dict.get("max") or temp_dict.get("temp_max")
             temp_low = temp_dict.get("min") or temp_dict.get("temp_min")
             temp = temp_dict.get("temp") or temp_high
 
-            pressure = entry.pressure.get("press") if entry.pressure else None
-            wind_gust = getattr(entry, "wind_gust", None)
+            pressure_dict = getattr(entry, "pressure", None) or {}
+            pressure = pressure_dict.get("press") if isinstance(pressure_dict, dict) else None
 
-            # Reference time as datetime
-            ref_ts = entry.reference_time("unix")
+            ref_ts = entry.reference_time("unix") if hasattr(entry, "reference_time") else None
+            if ref_ts is None:
+                return None
             fc_time = dt.utc_from_timestamp(ref_ts)
 
             return Forecast(
@@ -215,9 +226,7 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 native_temp_low=temp_low,
                 native_dew_point=None,
                 cloud_coverage=clouds,
-                condition=self._get_condition(
-                    entry.weather_code, ref_ts
-                ),
+                condition=self._get_condition(getattr(entry, "weather_code", None), ref_ts),
                 humidity=humidity,
                 native_apparent_temperature=feels_like,
                 native_pressure=pressure,

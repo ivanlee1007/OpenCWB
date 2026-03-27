@@ -1,11 +1,14 @@
 """Support for the OpenCWB (OCWB) service."""
 from .abstract_ocwb_sensor import AbstractOpenCWBSensor
 from .const import (
-    ATTR_API_FORECAST,
+    ATTR_API_FORECAST_DAILY,
+    ATTR_API_FORECAST_HOURLY,
     CONF_LOCATION_NAME,
     DOMAIN,
     ENTRY_NAME,
     ENTRY_WEATHER_COORDINATOR,
+    FORECAST_MODE_HOURLY,
+    FORECAST_MODE_ONECALL_HOURLY,
     FORECAST_MONITORED_CONDITIONS,
     FORECAST_SENSOR_TYPES,
     MONITORED_CONDITIONS,
@@ -38,6 +41,14 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         )
 
     for sensor_type in FORECAST_MONITORED_CONDITIONS:
+        if (
+            weather_coordinator.forecast_mode in (
+                FORECAST_MODE_HOURLY,
+                FORECAST_MODE_ONECALL_HOURLY,
+            )
+            and sensor_type == "templow"
+        ):
+            continue
         unique_id = f"{config_entry.unique_id}-forecast-{sensor_type}-{location_name}"
         entities.append(
             OpenCWBForecastSensor(
@@ -83,7 +94,7 @@ class OpenCWBSensor(AbstractOpenCWBSensor):
 
 
 class OpenCWBForecastSensor(AbstractOpenCWBSensor):
-    """Implementation of an OpenCWB this day forecast sensor."""
+    """Implementation of an OpenCWB forecast sensor."""
 
     def __init__(
         self,
@@ -105,10 +116,43 @@ class OpenCWBForecastSensor(AbstractOpenCWBSensor):
         self._attr_name = name.replace("_", " ")
         self._attr_unique_id = unique_id
 
+    def _forecast_key(self):
+        """Return the coordinator forecast key for the current forecast mode."""
+        if self._weather_coordinator.forecast_mode in (
+            FORECAST_MODE_HOURLY,
+            FORECAST_MODE_ONECALL_HOURLY,
+        ):
+            return ATTR_API_FORECAST_HOURLY
+        return ATTR_API_FORECAST_DAILY
+
+    def _extract_value(self, forecast):
+        """Extract a single forecast field from HA Forecast mapping/object."""
+        attr_map = {
+            "precipitation": ["precipitation", "native_precipitation"],
+            "temperature": ["temperature", "native_temperature"],
+            "templow": ["templow", "native_temp_low"],
+            "wind_speed": ["wind_speed", "native_wind_speed"],
+            "wind_bearing": ["wind_bearing"],
+            "datetime": ["datetime"],
+            "condition": ["condition"],
+            "precipitation_probability": ["precipitation_probability"],
+        }
+        candidates = attr_map.get(self._sensor_type, [self._sensor_type])
+        if isinstance(forecast, dict):
+            for name in candidates:
+                if name in forecast and forecast.get(name) is not None:
+                    return forecast.get(name)
+            return None
+        for name in candidates:
+            value = getattr(forecast, name, None)
+            if value is not None:
+                return value
+        return None
+
     @property
     def state(self):
         """Return the state of the device."""
-        forecasts = self._weather_coordinator.data.get(ATTR_API_FORECAST)
-        if forecasts is not None and len(forecasts) > 0:
-            return forecasts[0].get(self._sensor_type, None)
+        forecasts = self._weather_coordinator.data.get(self._forecast_key())
+        if forecasts:
+            return self._extract_value(forecasts[0])
         return None
