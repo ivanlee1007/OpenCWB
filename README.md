@@ -13,6 +13,24 @@ Or manually copy `opencwb` folder to `custom_components` folder in your config f
 
 Then restart HA.
 
+## Latest changes
+
+### v1.3.6
+- Fix the update button so it no longer depends on a non-existent coordinator attribute.
+- The button now records its own status fields in attributes:
+  - `update_status`
+  - `last_update_time`
+  - `previous_update_time`
+  - `last_error` (only when refresh fails)
+- Keep the button grouped under the same device as the weather/sensor entities.
+
+### v1.3.1 - v1.3.5
+- Improve Home Assistant Weather Entity compatibility.
+- Return proper `Forecast` objects for daily / hourly forecast.
+- Add native weather properties such as UV index and precipitation.
+- Add an update button entity for immediate weather refresh.
+- Fix older Home Assistant import compatibility issues.
+
 # Setup
 
 **Apply a API key in Opendata CWA**
