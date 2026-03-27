@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 import async_timeout
+import requests
 from .core.commons.exceptions import APIRequestError, UnauthorizedError
 
 from homeassistant.components.weather import (
@@ -51,6 +52,18 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 WEATHER_UPDATE_INTERVAL = timedelta(minutes=15)
+
+
+class ObservationFallbackCurrent:
+    """Minimal current-weather object for pressure/wind/UV fallback."""
+
+    def __init__(self, pressure=None, wind_deg=None, wind_speed=None, uvi=None):
+        self.pressure = {"press": pressure, "sea_level": None} if pressure is not None else None
+        self._wind = {"deg": wind_deg, "speed": wind_speed, "gust": None}
+        self.uvi = uvi
+
+    def wind(self):
+        return self._wind
 
 
 class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -131,6 +144,67 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         return weather
 
+    def _fetch_observation_fallback_current(self):
+        """Fetch nearest-station observation data directly for pressure fallback."""
+        cfg = getattr(self._ocwb_client.http_client, "config", {}) or {}
+        timeout = cfg.get("connection", {}).get("timeout_secs", 15)
+        verify = cfg.get("connection", {}).get("verify_ssl_certs", False)
+        proxies = cfg.get("proxies") or None
+        url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001"
+        resp = requests.get(
+            url,
+            params={
+                "Authorization": self._ocwb_client.API_key,
+                "format": "JSON",
+                "lon": self._longitude,
+                "lat": self._latitude,
+            },
+            timeout=timeout,
+            verify=verify,
+            proxies=proxies,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        stations = data.get("records", {}).get("Station", [])
+        if not stations:
+            raise APIRequestError("observation fallback returned 0 stations")
+
+        def _station_wgs84(station):
+            coords = station.get("GeoInfo", {}).get("Coordinates", [])
+            for c in coords:
+                if c.get("CoordinateName") == "WGS84":
+                    return float(c.get("StationLatitude")), float(c.get("StationLongitude"))
+            first = coords[0]
+            return float(first.get("StationLatitude")), float(first.get("StationLongitude"))
+
+        nearest = min(
+            stations,
+            key=lambda s: (
+                _station_wgs84(s)[0] - self._latitude,
+                _station_wgs84(s)[1] - self._longitude,
+            ),
+        )
+        elem = nearest.get("WeatherElement", {})
+        pressure = elem.get("AirPressure")
+        wind_deg = elem.get("WindDirection")
+        wind_speed = elem.get("WindSpeed")
+        uvi = elem.get("UVIndex")
+        current = ObservationFallbackCurrent(
+            pressure=float(pressure) if pressure not in (None, "") else None,
+            wind_deg=float(wind_deg) if wind_deg not in (None, "") else None,
+            wind_speed=float(wind_speed) if wind_speed not in (None, "") else None,
+            uvi=float(uvi) if uvi not in (None, "") else None,
+        )
+        self._debug_observation_info = {
+            "ok": True,
+            "location": nearest.get("GeoInfo", {}).get("TownName") or nearest.get("StationName"),
+            "pressure": current.pressure,
+            "wind": current.wind(),
+            "uvi": current.uvi,
+            "source": "direct_observation_api",
+        }
+        return current
+
     def _get_legacy_weather_and_forecast(self, interval: str | None = None):
         """Get weather and forecast data using the legacy API."""
         if interval is None:
@@ -141,20 +215,13 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         observation_current = None
         try:
-            observation = self._ocwb_client.weather_at_coords(self._latitude, self._longitude)
-            observation_current = getattr(observation, "weather", None)
-            self._debug_observation_info = {
-                "ok": True,
-                "location": getattr(getattr(observation, "location", None), "name", None),
-                "pressure": getattr(observation_current, "pressure", None) if observation_current is not None else None,
-                "wind": observation_current.wind() if observation_current is not None and hasattr(observation_current, "wind") else None,
-                "uvi": getattr(observation_current, "uvi", None) if observation_current is not None else None,
-            }
+            observation_current = self._fetch_observation_fallback_current()
         except Exception as exc:
             _LOGGER.warning("OpenCWB observation fallback failed: %s", exc)
             self._debug_observation_info = {
                 "ok": False,
                 "error": str(exc),
+                "source": "direct_observation_api",
             }
             observation_current = None
         return LegacyWeather(weather.weather, forecast.forecast.weathers, observation_current)
@@ -179,7 +246,6 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 fallback_pressure_raw,
                 type(fallback_current).__name__ if fallback_current is not None else None,
             )
-            pressure = 999.9
 
         return {
             ATTR_API_TEMPERATURE: current.temperature("celsius").get("temp"),
