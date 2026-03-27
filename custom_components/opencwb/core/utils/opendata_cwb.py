@@ -126,6 +126,24 @@ class OpendataCWB:
                     value["humidity"] = int(element_value[0][value_str])
                 else:
                     value["humidity"] = int(list(element_value[0].values())[0])
+            elif i[elementname] in ["AirPressure", "StationPressure", "\u6c23\u58d3", "\u6e2c\u7ad9\u6c23\u58d3"]:
+                if value_str in element_value[0]:
+                    raw_pressure = element_value[0][value_str]
+                else:
+                    raw_pressure = list(element_value[0].values())[0]
+                try:
+                    value["pressure"] = float(raw_pressure)
+                except (TypeError, ValueError):
+                    pass
+            elif i[elementname] in ["SeaLevelPressure", "\u6d77\u5e73\u9762\u6c23\u58d3"]:
+                if value_str in element_value[0]:
+                    raw_sea_level = element_value[0][value_str]
+                else:
+                    raw_sea_level = list(element_value[0].values())[0]
+                try:
+                    value["main"]["sea_level"] = float(raw_sea_level)
+                except (TypeError, ValueError):
+                    pass
             elif i[elementname] in ["MinCI", "\u8212\u9069\u5ea6\u6307\u6578"]:
                 if value_str in element_value[0]:
                     value["calc"]["humidex"] = int(element_value[0][value_str])
