@@ -11,22 +11,9 @@ from .core.commons.exceptions import APIRequestError, UnauthorizedError
 from homeassistant.components.weather import (
     ATTR_CONDITION_CLEAR_NIGHT,
     ATTR_CONDITION_SUNNY,
-    ATTR_FORECAST_CONDITION,
-    ATTR_FORECAST_HUMIDITY,
-    ATTR_FORECAST_NATIVE_APPARENT_TEMPERATURE,
-    ATTR_FORECAST_NATIVE_PRECIPITATION,
-    ATTR_FORECAST_NATIVE_PRESSURE,
-    ATTR_FORECAST_NATIVE_TEMPERATURE,
-    ATTR_FORECAST_NATIVE_TEMP_LOW,
-    ATTR_FORECAST_NATIVE_WIND_GUST_SPEED,
-    ATTR_FORECAST_NATIVE_WIND_SPEED,
-    ATTR_FORECAST_PRECIPITATION_PROBABILITY,
-    ATTR_FORECAST_TIME,
-    ATTR_FORECAST_WIND_BEARING,
-    ATTR_FORECAST_CLOUDS,
     Forecast,
 )
-from homeassistant.const import UnitOfPressure, UnitOfSpeed, UnitOfTemperature
+from homeassistant.const import UnitOfSpeed, UnitOfTemperature
 from homeassistant.helpers import sun
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
