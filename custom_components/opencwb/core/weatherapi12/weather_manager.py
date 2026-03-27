@@ -187,12 +187,19 @@ class WeatherManager:
 
         weather_text = elem.get('Weather') or ''
         precip = _to_float(elem.get('Now', {}).get('Precipitation'))
+        obs_time = station.get('ObsTime', {}).get('DateTime') or ''
         synthetic = {
             'locationName': station.get('GeoInfo', {}).get('TownName') or station.get('StationName'),
             'lat': s_lat,
             'lon': s_lon,
             'current': {
-                'weather': [{'main': weather_text, 'description': weather_text, 'id': 0}],
+                'dt': formatting.iso8601_to_UNIX(obs_time) if obs_time else 0,
+                'weather': [{
+                    'main': 'Clouds' if weather_text else '',
+                    'description': weather_text,
+                    'id': 0,
+                    'icon': '01d',
+                }],
                 'temp': _to_float(elem.get('AirTemperature')),
                 'humidity': _to_float(elem.get('RelativeHumidity')),
                 'pressure': _to_float(elem.get('AirPressure')),
