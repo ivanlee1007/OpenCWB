@@ -187,8 +187,8 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         nearest = min(
             stations,
             key=lambda s: (
-                _station_wgs84(s)[0] - self._latitude,
-                _station_wgs84(s)[1] - self._longitude,
+                (_station_wgs84(s)[0] - self._latitude) ** 2
+                + (_station_wgs84(s)[1] - self._longitude) ** 2
             ),
         )
         elem = nearest.get("WeatherElement", {})
@@ -196,11 +196,17 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         wind_deg = elem.get("WindDirection")
         wind_speed = elem.get("WindSpeed")
         uvi = elem.get("UVIndex")
+
+        def _clean_num(v):
+            if v in (None, ""):
+                return None
+            num = float(v)
+            return None if num <= -90 else num
         current = ObservationFallbackCurrent(
-            pressure=float(pressure) if pressure not in (None, "") else None,
-            wind_deg=float(wind_deg) if wind_deg not in (None, "") else None,
-            wind_speed=float(wind_speed) if wind_speed not in (None, "") else None,
-            uvi=float(uvi) if uvi not in (None, "") else None,
+            pressure=_clean_num(pressure),
+            wind_deg=_clean_num(wind_deg),
+            wind_speed=_clean_num(wind_speed),
+            uvi=_clean_num(uvi),
         )
         self._debug_observation_info = {
             "ok": True,
