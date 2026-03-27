@@ -114,10 +114,14 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if interval == "hourly":
                 return HybridWeather(
                     current=current_weather.current,
+                    legacy_current=legacy_weather.current,
+                    fallback_current=legacy_weather.fallback_current,
                     forecast_hourly=legacy_weather.forecast,
                 )
             return HybridWeather(
                 current=current_weather.current,
+                legacy_current=legacy_weather.current,
+                fallback_current=legacy_weather.fallback_current,
                 forecast_daily=legacy_weather.forecast,
             )
         weather = await self.hass.async_add_executor_job(
@@ -133,11 +137,21 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         forecast = self._ocwb_client.forecast_at_place(
             self._location_name, interval, self._forecast_limit
         )
-        return LegacyWeather(weather.weather, forecast.forecast.weathers)
+        observation_current = None
+        try:
+            observation = self._ocwb_client.weather_at_coords(self._latitude, self._longitude)
+            observation_current = getattr(observation, "weather", None)
+        except Exception:
+            observation_current = None
+        return LegacyWeather(weather.weather, forecast.forecast.weathers, observation_current)
 
     def _convert_weather_response(self, weather_response) -> dict[str, Any]:
         """Convert OpenCWB API response to HA weather entity format."""
         current = weather_response.current
+        legacy_current = getattr(weather_response, "legacy_current", None)
+        fallback_current = getattr(weather_response, "fallback_current", None)
+        pressure = self._extract_pressure(current, legacy_current, fallback_current)
+        wind_bearing = self._extract_wind_bearing(current, legacy_current, fallback_current)
 
         return {
             ATTR_API_TEMPERATURE: current.temperature("celsius").get("temp"),
@@ -145,9 +159,9 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "celsius"
             ).get("feels_like"),
             ATTR_API_DEW_POINT: self._fmt_dewpoint(current.dewpoint),
-            ATTR_API_PRESSURE: current.pressure.get("press"),
+            ATTR_API_PRESSURE: pressure,
             ATTR_API_HUMIDITY: current.humidity,
-            ATTR_API_WIND_BEARING: current.wind().get("deg"),
+            ATTR_API_WIND_BEARING: wind_bearing,
             ATTR_API_WIND_GUST: current.wind().get("gust"),
             ATTR_API_WIND_SPEED: current.wind().get("speed"),
             ATTR_API_CLOUDS: current.clouds,
@@ -211,7 +225,9 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             wind_dict = entry.wind() if hasattr(entry, "wind") else {}
             wind_speed = wind_dict.get("speed") if isinstance(wind_dict, dict) else None
-            wind_bearing = wind_dict.get("deg") if isinstance(wind_dict, dict) else None
+            wind_bearing = self._normalize_wind_bearing(
+                wind_dict.get("deg") if isinstance(wind_dict, dict) else None
+            )
             wind_gust = wind_dict.get("gust") if isinstance(wind_dict, dict) else None
 
             clouds = getattr(entry, "clouds", None)
@@ -250,6 +266,75 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         except Exception:  # noqa: BLE001 – defensive; skip malformed entries
             return None
+
+    @staticmethod
+    def _extract_pressure(current, legacy_current=None, fallback_current=None) -> float | None:
+        """Return current pressure, falling back to legacy/observation current when omitted."""
+        for candidate in (current, legacy_current, fallback_current):
+            pressure_dict = getattr(candidate, "pressure", None) or {}
+            if isinstance(pressure_dict, dict):
+                pressure = pressure_dict.get("press")
+                if pressure is not None:
+                    return pressure
+        return None
+
+    def _extract_wind_bearing(self, current, legacy_current=None, fallback_current=None):
+        """Return the first usable wind bearing across current fallbacks."""
+        for candidate in (current, legacy_current, fallback_current):
+            if candidate is None:
+                continue
+            try:
+                value = candidate.wind().get("deg")
+            except Exception:
+                value = None
+            normalized = self._normalize_wind_bearing(value)
+            if normalized is not None:
+                return normalized
+        return None
+
+    @staticmethod
+    def _normalize_wind_bearing(value) -> float | str | None:
+        """Normalize wind bearing to HA-supported degrees or 1-3 letter cardinals."""
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return value
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return None
+            try:
+                return float(text)
+            except ValueError:
+                pass
+            mapping = {
+                "北風": "N",
+                "偏北風": "N",
+                "北北東風": "NNE",
+                "東北風": "NE",
+                "東北東風": "ENE",
+                "東風": "E",
+                "偏東風": "E",
+                "東南東風": "ESE",
+                "東南風": "SE",
+                "南南東風": "SSE",
+                "南風": "S",
+                "偏南風": "S",
+                "南南西風": "SSW",
+                "西南風": "SW",
+                "西南西風": "WSW",
+                "西風": "W",
+                "偏西風": "W",
+                "西北西風": "WNW",
+                "西北風": "NW",
+                "北北西風": "NNW",
+                "偏東北風": "NE",
+                "偏東南風": "SE",
+                "偏西南風": "SW",
+                "偏西北風": "NW",
+            }
+            return mapping.get(text, text if len(text) <= 3 and text.isalpha() else None)
+        return None
 
     # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -327,7 +412,9 @@ class LegacyWeather:
 class HybridWeather:
     """Use onecall current weather plus legacy district-level forecast."""
 
-    def __init__(self, current, forecast_hourly=None, forecast_daily=None) -> None:
+    def __init__(self, current, legacy_current=None, fallback_current=None, forecast_hourly=None, forecast_daily=None) -> None:
         self.current = current
+        self.legacy_current = legacy_current
+        self.fallback_current = fallback_current
         self.forecast_hourly = forecast_hourly
         self.forecast_daily = forecast_daily

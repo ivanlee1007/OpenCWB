@@ -148,7 +148,7 @@ class WeatherManager:
         """
         geo.assert_is_lon(lon)
         geo.assert_is_lat(lat)
-        params = {'lon': lon, 'lat': lat}
+        params = {'lon': lon, 'lat': lat, 'locationName': ''}
         _, json_data = self.http_client.get_json(OBSERVATION_URI, params=params)
         return observation.Observation.from_dict(json_data)
 
