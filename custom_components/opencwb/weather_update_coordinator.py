@@ -156,7 +156,9 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if v and "host:port" not in v and "user:pass" not in v
         } or None
         url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001"
-        resp = requests.get(
+        session = requests.Session()
+        session.trust_env = False
+        resp = session.get(
             url,
             params={
                 "Authorization": self._ocwb_client.API_key,
