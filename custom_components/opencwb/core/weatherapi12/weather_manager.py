@@ -9,7 +9,7 @@ import urllib.request
 from ..commons import exceptions
 from ..commons.http_client import HttpClient
 from ..constants import WEATHER_API_VERSION
-from ..utils import geo
+from ..utils import geo, formatting
 from . import forecaster, historian, observation, forecast, stationhistory, one_call
 from .uris import ROOT_WEATHER_API, OBSERVATION_URI, GROUP_OBSERVATIONS_URI, FIND_OBSERVATIONS_URI, \
     BBOX_CITY_URI, THREE_HOURS_FORECAST_URI, DAILY_FORECAST_URI, STATION_WEATHER_HISTORY_URI, ONE_CALL_URI, \
