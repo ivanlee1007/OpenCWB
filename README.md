@@ -60,7 +60,11 @@ Then restart HA.
    2. If the integration is still not in the list, you need to clear the browser cache.
 2. Enter API key.
 3. Enter the location name of Taiwan. Please reference to the name in the [doc](https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf).
-   1. Some location name need to include the city name.
+   1. Some location names need to include the city name.
+   2. Township / district names are allowed, for example `新店區`, `板橋區`, `大安區`.
+   3. For ambiguous names such as `東區`, `北區`, `中山區`, include the city name, for example `嘉義市東區` or `臺中市東區`.
+   4. In `onecall_*` modes, the integration keeps your configured township / district name in Home Assistant, but internally upgrades it to the parent city only for current / UV lookup when required by the CWA onecall dataset.
+   5. Forecast data still stays on the original township / district source, so using `onecall_*` does not force you to give up local forecast granularity.
 
 Buy Me A Coffee
 
