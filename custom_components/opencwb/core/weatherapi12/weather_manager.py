@@ -157,7 +157,8 @@ class WeatherManager:
             'lon': lon,
             'lat': lat,
         })
-        url = f"{ROOT_WEATHER_API}/{OBSERVATION_URI}?{params}"
+        root_uri = ROOT_WEATHER_API if str(ROOT_WEATHER_API).startswith(('http://', 'https://')) else f"https://{ROOT_WEATHER_API}"
+        url = f"{root_uri}/{OBSERVATION_URI}?{params}"
         try:
             with urllib.request.urlopen(url, timeout=self.http_client.config['connection']['timeout_secs']) as resp:
                 json_data = json.load(resp)
