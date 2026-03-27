@@ -15,6 +15,18 @@
 
 ## 最新更新
 
+### v1.3.13
+- 修正 `onecall_*` 模式下，鄉鎮 / 區級地名（例如 `新店區`）拿不到 UV index 的問題。
+- Home Assistant 中的設定名稱不需要改成縣市，仍可維持原本的區級名稱。
+- 程式內部只在 onecall current / UV 查詢時，自動把區級地名升成上層縣市去查。
+- forecast sensors 仍維持原本區級來源，不會因為修 UV 而失去區級預報粒度。
+- 已做現場驗證：UV index 恢復，forecast sensors 也維持正常。
+
+### v1.3.11 - v1.3.12
+- 修正預報感測器在 forecast model 重構後大量變成 `unknown` 的問題。
+- forecast sensor 取值邏輯同時相容 native 欄位名與序列化後欄位名。
+- 移除 hourly 模式下不合理的 `templow` 處理。
+
 ### v1.3.6
 - 修正「更新天氣」按鈕不再依賴 coordinator 中不存在的欄位。
 - 按鈕會自行在實體屬性中記錄：

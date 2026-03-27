@@ -15,6 +15,18 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.3.13
+- Fix `onecall_*` UV index lookup for township / district locations such as `新店區`.
+- Keep the configured location name unchanged in Home Assistant.
+- Internally upgrade district names to their parent city only for onecall current / UV requests.
+- Keep forecast sensors on the original district-level forecast source, so UV works without sacrificing local forecast granularity.
+- Verified live: UV index restored while forecast sensors remain normal.
+
+### v1.3.11 - v1.3.12
+- Restore forecast sensors that were stuck at `unknown` after the forecast model refactor.
+- Make forecast sensor extraction compatible with both native and serialized Forecast field names.
+- Remove invalid hourly `templow` handling.
+
 ### v1.3.6
 - Fix the update button so it no longer depends on a non-existent coordinator attribute.
 - The button now records its own status fields in attributes:
