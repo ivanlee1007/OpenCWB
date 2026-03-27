@@ -13,6 +13,25 @@
 
 然後重新啟動 Home Assistant.
 
+## 最新更新
+
+### v1.3.6
+- 修正「更新天氣」按鈕不再依賴 coordinator 中不存在的欄位。
+- 按鈕會自行在實體屬性中記錄：
+  - `update_status`
+  - `last_update_time`
+  - `previous_update_time`
+  - `last_error`（只有失敗時出現）
+- 按鈕會與 weather / sensor 實體掛在同一個 HA 裝置下。
+- 已做現場閉環驗證：按鈕可正常觸發更新且不再報錯。
+
+### v1.3.1 - v1.3.5
+- 改善 Home Assistant Weather Entity 規格相容性。
+- 預報改回傳正確的 `Forecast` 物件。
+- 補上 UV index、precipitation 等 native weather 屬性。
+- 新增可手動立即更新氣象資料的按鈕實體。
+- 修正舊版 Home Assistant 的 import 相容性問題。
+
 # 設置
 
 **在 Opendata CWA 申請 API 授權碼**
