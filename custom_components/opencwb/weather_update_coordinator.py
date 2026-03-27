@@ -154,6 +154,15 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         pressure = self._extract_pressure(current, legacy_current, fallback_current)
         wind_bearing = self._extract_wind_bearing(current, legacy_current, fallback_current)
 
+        if pressure is None:
+            _LOGGER.warning(
+                "OpenCWB pressure missing after fallback: current=%s legacy=%s fallback=%s fallback_type=%s",
+                getattr(current, "pressure", None),
+                getattr(legacy_current, "pressure", None) if legacy_current is not None else None,
+                getattr(fallback_current, "pressure", None) if fallback_current is not None else None,
+                type(fallback_current).__name__ if fallback_current is not None else None,
+            )
+
         return {
             ATTR_API_TEMPERATURE: current.temperature("celsius").get("temp"),
             ATTR_API_FEELS_LIKE_TEMPERATURE: current.temperature(

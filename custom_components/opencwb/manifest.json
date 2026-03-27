@@ -2,7 +2,7 @@
   "domain": "opencwb",
   "name": "OpenCWA",
   "config_flow": true,
-  "version": "1.3.24",
+  "version": "1.3.25",
   "documentation": "https://opendata.cwa.gov.tw/devManual/insrtuction",
   "issue_tracker": "https://github.com/tsunglung/OpenCWB/issues",
   "requirements": ["geojson"],
