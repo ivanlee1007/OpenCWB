@@ -149,7 +149,12 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         cfg = getattr(self._ocwb_client.http_client, "config", {}) or {}
         timeout = cfg.get("connection", {}).get("timeout_secs", 15)
         verify = cfg.get("connection", {}).get("verify_ssl_certs", False)
-        proxies = cfg.get("proxies") or None
+        proxies_cfg = cfg.get("proxies") or {}
+        proxies = {
+            k: v
+            for k, v in proxies_cfg.items()
+            if v and "host:port" not in v and "user:pass" not in v
+        } or None
         url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001"
         resp = requests.get(
             url,
