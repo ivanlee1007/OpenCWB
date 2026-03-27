@@ -1,12 +1,20 @@
-"""Update button for OpenCWB."""
+"""Update button for OpenCWB.
+
+Attaches as a button entity under the same device as the weather and sensor
+entities. Pressing the button triggers an immediate weather-data refresh and
+records the outcome (success / failure, timestamps, error message) in the
+entity attributes.
+"""
+from __future__ import annotations
+
 import logging
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -28,15 +36,15 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the OpenCWB update button based on a config entry."""
+    """Set up the OpenCWB update button for one location."""
     domain_data = hass.data[DOMAIN][config_entry.entry_id]
     name = domain_data[ENTRY_NAME]
-    weather_coordinator = domain_data[ENTRY_WEATHER_COORDINATOR]
+    weather_coordinator: WeatherUpdateCoordinator = domain_data[ENTRY_WEATHER_COORDINATOR]
     location_name = domain_data[CONF_LOCATION_NAME]
 
-    # Derive device identifier using the same formula as weather.py:
-    # split unique_id by "-" → first two parts form the device ID
-    # (format: {entry_id_part0}-{entry_id_part1}-{location_name})
+    # Derive the device identifier using the SAME formula as weather.py
+    # and abstract_ocwb_sensor.py:
+    #   split unique_id "-" → first two parts = "{lat}-{lon}"
     split_unique_id = config_entry.unique_id.split("-")
     device_id = f"{split_unique_id[0]}-{split_unique_id[1]}"
 
@@ -44,50 +52,51 @@ async def async_setup_entry(
     async_add_entities(
         [
             OCWBUpdateButton(
-                name,
-                unique_id,
-                weather_coordinator,
-                location_name,
-                device_id,
+                name=name,
+                unique_id=unique_id,
+                coordinator=weather_coordinator,
+                location_name=location_name,
+                device_id=device_id,
             )
         ],
-        False,
+        update_before_add=False,
     )
 
 
-class OCWBUpdateButton(CoordinatorEntity[WeatherUpdateCoordinator], ButtonEntity):
-    """Update button for OpenCWB weather data.
+class OCWBUpdateButton(ButtonEntity):
+    """Button that forces an immediate weather-data refresh.
 
-    Pressing this button triggers an immediate refresh of weather data
-    from the CWB OpenData API and records the result (success/failure,
-    last execution time, error message) in the entity attributes.
-    The button is grouped under the same device as the weather entity
-    and sensors.
+    Grouped under the same device as the weather and sensor entities.
+    After each press the entity attributes show:
+      - update_status  : "成功" / "失敗"
+      - last_update_time: ISO datetime of the latest successful refresh
+      - last_error      : error message if the last refresh failed (absent on success)
     """
 
     def __init__(
         self,
         name: str,
         unique_id: str,
-        weather_coordinator: WeatherUpdateCoordinator,
+        coordinator: WeatherUpdateCoordinator,
         location_name: str,
         device_id: str,
     ) -> None:
         """Initialize the button."""
-        super().__init__(weather_coordinator)
+        # Base entity attributes
         self._attr_name = f"{name} 更新天氣"
         self._attr_unique_id = unique_id
-        self._weather_coordinator = weather_coordinator
-        self._location_name = location_name
+        self._attr_attribution = ATTRIBUTION
 
-        # device_info uses the same identifier as weather.py and sensors,
-        # ensuring the button appears under the same device in HA
+        # Device info — same identifier as weather.py / sensors, so HA groups them
         self._attr_device_info = DeviceInfo(
+            entry_type=DeviceEntryType.SERVICE,
             identifiers={(DOMAIN, device_id)},
             manufacturer=MANUFACTURER,
-            name=f"{DEFAULT_NAME} {location_name}",
+            name=DEFAULT_NAME,
         )
-        self._attr_attribution = ATTRIBUTION
+
+        # Coordinator reference (direct composition, no mixin to avoid MRO issues)
+        self._coordinator = coordinator
 
         # Pre-initialise attributes so the entity is not "unavailable" before first press
         self._attr_extra_state_attributes = {
@@ -96,20 +105,18 @@ class OCWBUpdateButton(CoordinatorEntity[WeatherUpdateCoordinator], ButtonEntity
         }
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to coordinator updates to keep attributes in sync."""
+        """Subscribe to coordinator updates so attributes stay in sync."""
         await super().async_added_to_hass()
         self.async_on_remove(
-            self._weather_coordinator.async_add_listener(self._async_update_attrs)
+            self._coordinator.async_add_listener(self._sync_attrs)
         )
 
     @callback
-    def _async_update_attrs(self) -> None:
-        """Sync current coordinator state to button attributes on every refresh."""
-        coordinator = self._weather_coordinator
-        last_ts = coordinator.last_update_success_time
-
+    def _sync_attrs(self) -> None:
+        """Sync coordinator state → entity attributes on every refresh."""
+        last_ts = self._coordinator.last_update_success_time
         self._attr_extra_state_attributes = {
-            "update_status": "成功" if coordinator.last_update_success else "失敗",
+            "update_status": "成功" if self._coordinator.last_update_success else "失敗",
             "last_update_time": (
                 dt_util.as_local(last_ts).isoformat() if last_ts else None
             ),
@@ -117,22 +124,22 @@ class OCWBUpdateButton(CoordinatorEntity[WeatherUpdateCoordinator], ButtonEntity
         self.async_write_ha_state()
 
     async def async_press(self) -> None:
-        """Handle button press: trigger immediate weather data refresh."""
-        coordinator = self._weather_coordinator
-        _LOGGER.debug(
-            "OpenCWB update button pressed for %s", self._location_name
-        )
+        """Handle button press: trigger immediate refresh and record result."""
+        _LOGGER.debug("OpenCWB update button pressed for %s", self._attr_name)
 
-        # Capture timestamps before refresh for comparison
-        ts_before = coordinator.last_update_success_time
+        ts_before = self._coordinator.last_update_success_time
 
-        # Trigger immediate refresh; any exception propagates to HA as an error
-        await coordinator.async_refresh()
+        # Refresh and capture any error
+        error_msg: str | None = None
+        try:
+            await self._coordinator.async_refresh()
+        except Exception as ex:  # noqa: BLE001
+            error_msg = str(ex)
+            _LOGGER.warning("OpenCWB update failed: %s", ex)
 
-        # Read updated state after refresh
-        success = coordinator.last_update_success
-        now_ts = coordinator.last_update_success_time
-        error_reason = getattr(coordinator, "_update_error", None)
+        # Determine final state after refresh attempt
+        success = self._coordinator.last_update_success
+        now_ts = self._coordinator.last_update_success_time
 
         attrs = {
             "update_status": "成功" if success else "失敗",
@@ -143,8 +150,13 @@ class OCWBUpdateButton(CoordinatorEntity[WeatherUpdateCoordinator], ButtonEntity
                 dt_util.as_local(ts_before).isoformat() if ts_before else None
             ),
         }
-        if not success and error_reason:
-            attrs["last_error"] = str(error_reason)
+        if error_msg:
+            attrs["last_error"] = error_msg
+        elif not success:
+            # No exception but update still failed (e.g. API error stored in coordinator)
+            coordinator_error = getattr(self._coordinator, "_update_error", None)
+            if coordinator_error:
+                attrs["last_error"] = str(coordinator_error)
 
         self._attr_extra_state_attributes = attrs
         self.async_write_ha_state()
