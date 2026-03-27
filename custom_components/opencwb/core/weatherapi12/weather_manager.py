@@ -207,7 +207,7 @@ class WeatherManager:
             'lat': s_lat,
             'lon': s_lon,
             'current': {
-                'dt': formatting.iso8601_to_UNIX(obs_time) if obs_time else 0,
+                'dt': formatting.ISO8601_to_UNIXtime(obs_time) if obs_time else 0,
                 'weather': [{
                     'main': 'Clouds' if weather_text else '',
                     'description': weather_text,
