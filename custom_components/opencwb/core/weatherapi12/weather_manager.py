@@ -150,7 +150,60 @@ class WeatherManager:
         geo.assert_is_lat(lat)
         params = {'lon': lon, 'lat': lat, 'locationName': ''}
         _, json_data = self.http_client.get_json(OBSERVATION_URI, params=params)
-        return observation.Observation.from_dict(json_data)
+
+        stations = json_data.get('records', {}).get('Station', []) if isinstance(json_data, dict) else []
+        if not stations:
+            return observation.Observation.from_dict(json_data)
+
+        def _wgs84_coord(station):
+            coords = station.get('GeoInfo', {}).get('Coordinates', [])
+            for item in coords:
+                if item.get('CoordinateName') == 'WGS84':
+                    try:
+                        return float(item.get('StationLatitude')), float(item.get('StationLongitude'))
+                    except (TypeError, ValueError):
+                        return None
+            return None
+
+        def _distance_sq(station):
+            coord = _wgs84_coord(station)
+            if coord is None:
+                return float('inf')
+            s_lat, s_lon = coord
+            return (s_lat - lat) ** 2 + (s_lon - lon) ** 2
+
+        station = min(stations, key=_distance_sq)
+        coord = _wgs84_coord(station) or (lat, lon)
+        s_lat, s_lon = coord
+        elem = station.get('WeatherElement', {})
+
+        def _to_float(value):
+            try:
+                if value in (None, '', ' '):
+                    return None
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        weather_text = elem.get('Weather') or ''
+        precip = _to_float(elem.get('Now', {}).get('Precipitation'))
+        synthetic = {
+            'locationName': station.get('GeoInfo', {}).get('TownName') or station.get('StationName'),
+            'lat': s_lat,
+            'lon': s_lon,
+            'current': {
+                'weather': [{'main': weather_text, 'description': weather_text, 'id': 0}],
+                'temp': _to_float(elem.get('AirTemperature')),
+                'humidity': _to_float(elem.get('RelativeHumidity')),
+                'pressure': _to_float(elem.get('AirPressure')),
+                'uvi': _to_float(elem.get('UVIndex')),
+                'wind_speed': _to_float(elem.get('WindSpeed')),
+                'wind_gust': _to_float(elem.get('GustInfo', {}).get('PeakGustSpeed')),
+                'wind_deg': _to_float(elem.get('WindDirection')),
+                'rain': {'1h': precip} if precip is not None else {},
+            },
+        }
+        return observation.Observation.from_dict(synthetic)
 
     def weather_at_zip_code(self, zipcode, country):
         """
