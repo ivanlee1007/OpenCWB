@@ -15,6 +15,12 @@
 
 ## 最新更新
 
+### v1.3.34
+- 修正 `onecall_daily` 啟動失敗問題。
+- 根因是 current / UV one-call 查詢誤打到 `F-D0047-093`，CWA 會回 `404 Resource not found`。
+- 改回固定使用 `F-D0047-091` 取得 one-call current / UV；daily forecast 仍由既有 legacy 區級預報路徑提供。
+- 這樣 `onecall_daily` 可正常 setup，同時保留區級 forecast 粒度。
+
 ### v1.3.13
 - 修正 `onecall_*` 模式下，鄉鎮 / 區級地名（例如 `新店區`）拿不到 UV index 的問題。
 - Home Assistant 中的設定名稱不需要改成縣市，仍可維持原本的區級名稱。

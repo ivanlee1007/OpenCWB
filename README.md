@@ -15,6 +15,12 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.3.34
+- Fix `onecall_daily` startup failure.
+- Root cause: the current / UV one-call request was incorrectly sent to `F-D0047-093`, which returns `404 Resource not found` for the lon/lat/locationName/interval request shape.
+- Switch back to `F-D0047-091` for one-call current / UV; daily forecast still comes from the existing legacy district-level forecast path.
+- This keeps `onecall_daily` working without losing district-level forecast granularity.
+
 ### v1.3.13
 - Fix `onecall_*` UV index lookup for township / district locations such as `新店區`.
 - Keep the configured location name unchanged in Home Assistant.

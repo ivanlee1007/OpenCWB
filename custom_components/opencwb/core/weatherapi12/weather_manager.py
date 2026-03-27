@@ -697,7 +697,12 @@ class WeatherManager:
         geo.assert_is_lat(lat)
 
         loc = self.one_call_city_name(loc)
-        uri = ONE_CALL_URI if intvl == "hourly" else ONE_CALL_HISTORICAL_URI
+        # `onecall_daily` still uses the one-call current dataset (F-D0047-091)
+        # for current/UV data; only the forecast side is handled separately by the
+        # legacy district-level forecast path. Using F-D0047-093 here returns 404
+        # for lon/lat/locationName/interval requests and makes the config entry fail
+        # during first refresh.
+        uri = ONE_CALL_URI
         params = {
             'lon': lon,
             'lat': lat,
