@@ -166,6 +166,7 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 fallback_pressure_raw,
                 type(fallback_current).__name__ if fallback_current is not None else None,
             )
+            pressure = 999.9
 
         return {
             ATTR_API_TEMPERATURE: current.temperature("celsius").get("temp"),
