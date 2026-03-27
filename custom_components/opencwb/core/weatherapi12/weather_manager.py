@@ -14,6 +14,32 @@ from .uris import ROOT_WEATHER_API, OBSERVATION_URI, GROUP_OBSERVATIONS_URI, FIN
 from ..commons.location_tw import LOCATIONS
 
 
+ONE_CALL_CITY_NAME_BY_DATASET = {
+    "F-D0047-001": "宜蘭縣",
+    "F-D0047-005": "桃園市",
+    "F-D0047-009": "新竹縣",
+    "F-D0047-013": "苗栗縣",
+    "F-D0047-017": "彰化縣",
+    "F-D0047-021": "南投縣",
+    "F-D0047-025": "雲林縣",
+    "F-D0047-029": "嘉義縣",
+    "F-D0047-033": "屏東縣",
+    "F-D0047-037": "臺東縣",
+    "F-D0047-041": "花蓮縣",
+    "F-D0047-045": "澎湖縣",
+    "F-D0047-049": "基隆市",
+    "F-D0047-053": "新竹市",
+    "F-D0047-057": "嘉義市",
+    "F-D0047-061": "臺北市",
+    "F-D0047-065": "高雄市",
+    "F-D0047-069": "新北市",
+    "F-D0047-073": "臺中市",
+    "F-D0047-077": "臺南市",
+    "F-D0047-081": "連江縣",
+    "F-D0047-085": "金門縣",
+}
+
+
 class WeatherManager:
     """
     A manager objects that provides a full interface to OCWB Weather API.
@@ -56,6 +82,21 @@ class WeatherManager:
             if i in location_name:
                 return location_name.replace(i, "")
         return location_name
+
+    def one_call_city_name(self, location_name):
+        """Return a city/county name compatible with the one_call datasets.
+
+        one_call datasets (F-D0047-091 / 093) are keyed by county/city, while the
+        regular district/township datasets use more specific location names such as
+        新店區. If a district/township name is given, map it to its parent city/county
+        so one_call can still return current/UV data.
+        """
+        loc_id = self.supported_city(location_name)
+        if loc_id is None:
+            return location_name
+        if loc_id == ONE_CALL_URI or loc_id == ONE_CALL_HISTORICAL_URI:
+            return location_name
+        return ONE_CALL_CITY_NAME_BY_DATASET.get(loc_id, location_name)
 
     def weather_at_place(self, name, interval):
         """
@@ -574,16 +615,11 @@ class WeatherManager:
         geo.assert_is_lon(lon)
         geo.assert_is_lat(lat)
 
-        loc_id = self.supported_city(loc)
-        loc = self.remove_city_name(loc)
-        uri = loc_id
-        if intvl == "daily":
-            uri = uri[0:uri.rindex("-") + 1] + str(
-                int(uri[uri.rindex("-") + 1:]) + 2).zfill(3)
+        loc = self.one_call_city_name(loc)
+        uri = ONE_CALL_URI if intvl == "hourly" else ONE_CALL_HISTORICAL_URI
         params = {
             'lon': lon,
             'lat': lat,
-#            'locationId': loc_id,
             'locationName': loc,
             'interval': intvl}
         for key , value in kwargs.items():

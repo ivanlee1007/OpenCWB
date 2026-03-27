@@ -99,22 +99,36 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             FORECAST_MODE_ONECALL_HOURLY,
             FORECAST_MODE_ONECALL_DAILY,
         ):
-            weather = await self.hass.async_add_executor_job(
+            interval = self.forecast_mode.split("_")[1]
+            current_weather = await self.hass.async_add_executor_job(
                 self._ocwb_client.one_call,
                 self._latitude,
                 self._longitude,
                 self._location_name,
-                self.forecast_mode.split("_")[1],
+                interval,
             )
-        else:
-            weather = await self.hass.async_add_executor_job(
-                self._get_legacy_weather_and_forecast
+            legacy_weather = await self.hass.async_add_executor_job(
+                self._get_legacy_weather_and_forecast,
+                interval,
             )
+            if interval == "hourly":
+                return HybridWeather(
+                    current=current_weather.current,
+                    forecast_hourly=legacy_weather.forecast,
+                )
+            return HybridWeather(
+                current=current_weather.current,
+                forecast_daily=legacy_weather.forecast,
+            )
+        weather = await self.hass.async_add_executor_job(
+            self._get_legacy_weather_and_forecast
+        )
         return weather
 
-    def _get_legacy_weather_and_forecast(self):
+    def _get_legacy_weather_and_forecast(self, interval: str | None = None):
         """Get weather and forecast data using the legacy API."""
-        interval = "hourly" if self.forecast_mode == FORECAST_MODE_HOURLY else "daily"
+        if interval is None:
+            interval = "hourly" if self.forecast_mode == FORECAST_MODE_HOURLY else "daily"
         weather = self._ocwb_client.weather_at_place(self._location_name, interval)
         forecast = self._ocwb_client.forecast_at_place(
             self._location_name, interval, self._forecast_limit
@@ -302,9 +316,18 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
 
 class LegacyWeather:
-    """Harmonize weather data model for legacy and One Call APIs."""
+    """Harmonize weather data model for legacy API."""
 
     def __init__(self, current_weather, forecast) -> None:
         """Initialize with raw API weather and forecast objects."""
         self.current = current_weather
         self.forecast = forecast
+
+
+class HybridWeather:
+    """Use onecall current weather plus legacy district-level forecast."""
+
+    def __init__(self, current, forecast_hourly=None, forecast_daily=None) -> None:
+        self.current = current
+        self.forecast_hourly = forecast_hourly
+        self.forecast_daily = forecast_daily
