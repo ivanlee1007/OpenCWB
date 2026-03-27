@@ -189,17 +189,6 @@ class OpenCWBWeather(SingleCoordinatorWeatherEntity[WeatherUpdateCoordinator]):
         """Return the wind bearing in degrees."""
         return self._weather_coordinator.data.get(ATTR_API_WIND_BEARING)
 
-    @property
-    def extra_state_attributes(self):
-        """Return temporary debug attributes for runtime diagnosis."""
-        data = self._weather_coordinator.data or {}
-        return {
-            "debug_pressure_current": data.get("debug_pressure_current"),
-            "debug_pressure_legacy": data.get("debug_pressure_legacy"),
-            "debug_pressure_fallback": data.get("debug_pressure_fallback"),
-            "debug_pressure_resolved": data.get("debug_pressure_resolved"),
-            "debug_observation_info": data.get("debug_observation_info"),
-        }
 
     # ── Forecast (HA spec requires _async_forecast_daily / _async_forecast_hourly) ──
 

@@ -89,8 +89,6 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if forecast_mode == FORECAST_MODE_DAILY:
             self._forecast_limit = 15
 
-        self._debug_observation_info: dict[str, Any] = {}
-
         super().__init__(
             hass,
             _LOGGER,
@@ -208,14 +206,6 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             wind_speed=_clean_num(wind_speed),
             uvi=_clean_num(uvi),
         )
-        self._debug_observation_info = {
-            "ok": True,
-            "location": nearest.get("GeoInfo", {}).get("TownName") or nearest.get("StationName"),
-            "pressure": current.pressure,
-            "wind": current.wind(),
-            "uvi": current.uvi,
-            "source": "direct_observation_api",
-        }
         return current
 
     def _get_legacy_weather_and_forecast(self, interval: str | None = None):
@@ -231,11 +221,6 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             observation_current = self._fetch_observation_fallback_current()
         except Exception as exc:
             _LOGGER.warning("OpenCWB observation fallback failed: %s", exc)
-            self._debug_observation_info = {
-                "ok": False,
-                "error": str(exc),
-                "source": "direct_observation_api",
-            }
             observation_current = None
         return LegacyWeather(weather.weather, forecast.forecast.weathers, observation_current)
 
@@ -247,16 +232,12 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         pressure = self._extract_pressure(current, legacy_current, fallback_current)
         wind_bearing = self._extract_wind_bearing(current, legacy_current, fallback_current)
 
-        current_pressure_raw = getattr(current, "pressure", None)
-        legacy_pressure_raw = getattr(legacy_current, "pressure", None) if legacy_current is not None else None
-        fallback_pressure_raw = getattr(fallback_current, "pressure", None) if fallback_current is not None else None
-
         if pressure is None:
             _LOGGER.warning(
                 "OpenCWB pressure missing after fallback: current=%s legacy=%s fallback=%s fallback_type=%s",
-                current_pressure_raw,
-                legacy_pressure_raw,
-                fallback_pressure_raw,
+                getattr(current, "pressure", None),
+                getattr(legacy_current, "pressure", None) if legacy_current is not None else None,
+                getattr(fallback_current, "pressure", None) if fallback_current is not None else None,
                 type(fallback_current).__name__ if fallback_current is not None else None,
             )
 
@@ -281,11 +262,6 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_API_CONDITION: self._get_condition(current.weather_code),
             ATTR_API_UV_INDEX: getattr(current, "uvi", None),
             ATTR_API_WEATHER_CODE: current.weather_code,
-            "debug_pressure_current": current_pressure_raw,
-            "debug_pressure_legacy": legacy_pressure_raw,
-            "debug_pressure_fallback": fallback_pressure_raw,
-            "debug_pressure_resolved": pressure,
-            "debug_observation_info": self._debug_observation_info,
             # Store daily and hourly forecasts separately as list[Forecast]
             "forecast_daily": self._build_forecast(weather_response, "daily"),
             "forecast_hourly": self._build_forecast(weather_response, "hourly"),
