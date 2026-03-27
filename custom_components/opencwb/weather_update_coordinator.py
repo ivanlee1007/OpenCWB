@@ -403,10 +403,11 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 class LegacyWeather:
     """Harmonize weather data model for legacy API."""
 
-    def __init__(self, current_weather, forecast) -> None:
+    def __init__(self, current_weather, forecast, fallback_current=None) -> None:
         """Initialize with raw API weather and forecast objects."""
         self.current = current_weather
         self.forecast = forecast
+        self.fallback_current = fallback_current
 
 
 class HybridWeather:
