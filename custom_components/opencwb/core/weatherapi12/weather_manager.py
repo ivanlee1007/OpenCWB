@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta, timezone
 from typing import Union
+import json
 import urllib.parse
+import urllib.request
 
+from ..commons import exceptions
 from ..commons.http_client import HttpClient
 from ..constants import WEATHER_API_VERSION
 from ..utils import geo
@@ -148,8 +151,18 @@ class WeatherManager:
         """
         geo.assert_is_lon(lon)
         geo.assert_is_lat(lat)
-        params = {'lon': lon, 'lat': lat, 'locationName': ''}
-        _, json_data = self.http_client.get_json(OBSERVATION_URI, params=params)
+        params = urllib.parse.urlencode({
+            'Authorization': self.API_key,
+            'format': 'JSON',
+            'lon': lon,
+            'lat': lat,
+        })
+        url = f"{ROOT_WEATHER_API}/{OBSERVATION_URI}?{params}"
+        try:
+            with urllib.request.urlopen(url, timeout=self.http_client.config['connection']['timeout_secs']) as resp:
+                json_data = json.load(resp)
+        except Exception as exc:
+            raise exceptions.APIRequestError(str(exc))
 
         stations = json_data.get('records', {}).get('Station', []) if isinstance(json_data, dict) else []
         if not stations:
