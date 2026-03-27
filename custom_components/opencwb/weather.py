@@ -198,6 +198,7 @@ class OpenCWBWeather(SingleCoordinatorWeatherEntity[WeatherUpdateCoordinator]):
             "debug_pressure_legacy": data.get("debug_pressure_legacy"),
             "debug_pressure_fallback": data.get("debug_pressure_fallback"),
             "debug_pressure_resolved": data.get("debug_pressure_resolved"),
+            "debug_observation_info": data.get("debug_observation_info"),
         }
 
     # ── Forecast (HA spec requires _async_forecast_daily / _async_forecast_hourly) ──

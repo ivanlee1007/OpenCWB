@@ -76,6 +76,8 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if forecast_mode == FORECAST_MODE_DAILY:
             self._forecast_limit = 15
 
+        self._debug_observation_info: dict[str, Any] = {}
+
         super().__init__(
             hass,
             _LOGGER,
@@ -141,8 +143,19 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             observation = self._ocwb_client.weather_at_coords(self._latitude, self._longitude)
             observation_current = getattr(observation, "weather", None)
+            self._debug_observation_info = {
+                "ok": True,
+                "location": getattr(getattr(observation, "location", None), "name", None),
+                "pressure": getattr(observation_current, "pressure", None) if observation_current is not None else None,
+                "wind": observation_current.wind() if observation_current is not None and hasattr(observation_current, "wind") else None,
+                "uvi": getattr(observation_current, "uvi", None) if observation_current is not None else None,
+            }
         except Exception as exc:
             _LOGGER.warning("OpenCWB observation fallback failed: %s", exc)
+            self._debug_observation_info = {
+                "ok": False,
+                "error": str(exc),
+            }
             observation_current = None
         return LegacyWeather(weather.weather, forecast.forecast.weathers, observation_current)
 
@@ -193,6 +206,7 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "debug_pressure_legacy": legacy_pressure_raw,
             "debug_pressure_fallback": fallback_pressure_raw,
             "debug_pressure_resolved": pressure,
+            "debug_observation_info": self._debug_observation_info,
             # Store daily and hourly forecasts separately as list[Forecast]
             "forecast_daily": self._build_forecast(weather_response, "daily"),
             "forecast_hourly": self._build_forecast(weather_response, "hourly"),
