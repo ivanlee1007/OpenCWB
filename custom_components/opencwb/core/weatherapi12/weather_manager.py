@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Union
 import json
 import urllib.parse
-import urllib.request
+import requests
 
 from ..commons import exceptions
 from ..commons.http_client import HttpClient
@@ -160,8 +160,15 @@ class WeatherManager:
         root_uri = ROOT_WEATHER_API if str(ROOT_WEATHER_API).startswith(('http://', 'https://')) else f"https://{ROOT_WEATHER_API}"
         url = f"{root_uri}/{OBSERVATION_URI}?{params}"
         try:
-            with urllib.request.urlopen(url, timeout=self.http_client.config['connection']['timeout_secs']) as resp:
-                json_data = json.load(resp)
+            resp = requests.get(
+                url,
+                timeout=self.http_client.config['connection']['timeout_secs'],
+                verify=self.http_client.config['connection']['verify_ssl_certs'],
+                proxies=self.http_client.config.get('proxies') or None,
+            )
+            if resp.status_code >= 400:
+                raise exceptions.APIRequestError(f"observation request failed: {resp.status_code} {resp.text[:200]}")
+            json_data = resp.json()
         except Exception as exc:
             raise exceptions.APIRequestError(str(exc))
 

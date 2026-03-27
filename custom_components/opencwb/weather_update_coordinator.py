@@ -141,7 +141,8 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             observation = self._ocwb_client.weather_at_coords(self._latitude, self._longitude)
             observation_current = getattr(observation, "weather", None)
-        except Exception:
+        except Exception as exc:
+            _LOGGER.warning("OpenCWB observation fallback failed: %s", exc)
             observation_current = None
         return LegacyWeather(weather.weather, forecast.forecast.weathers, observation_current)
 
