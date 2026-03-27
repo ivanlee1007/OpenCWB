@@ -82,7 +82,7 @@ class OCWBUpdateButton(ButtonEntity):
         device_id: str,
     ) -> None:
         """Initialize the button."""
-        # Base entity attributes
+        # Base entity attributes — MUST be set before super().__init__()
         self._attr_name = f"{name} 更新天氣"
         self._attr_unique_id = unique_id
         self._attr_attribution = ATTRIBUTION
@@ -98,7 +98,11 @@ class OCWBUpdateButton(ButtonEntity):
         # Coordinator reference (direct composition, no mixin to avoid MRO issues)
         self._coordinator = coordinator
 
-        # Pre-initialise attributes so the entity is not "unavailable" before first press
+        # Initialize base entity BEFORE setting _attr_extra_state_attributes
+        super().__init__()
+
+        # Set custom attributes AFTER super().__init__() so they aren't overwritten
+        # by Entity.__init__() setting _attr_extra_state_attributes = {}
         self._attr_extra_state_attributes = {
             "update_status": "待更新",
             "last_update_time": None,
