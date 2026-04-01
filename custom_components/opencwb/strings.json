@@ -5,7 +5,9 @@
         },
         "error": {
             "invalid_api_key": "[%key:common::config_flow::error::invalid_api_key%]",
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_location_name": "Unsupported location name. Please check the location name and try again.",
+            "unknown_error": "An unexpected error occurred. Please check the Home Assistant log for details."
         },
         "step": {
             "user": {
