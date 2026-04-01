@@ -76,7 +76,7 @@ class UnauthorizedError(APIResponseError):
     pass
 
 
-class ParseAPIResponseError(OCWBError):
+class ParseAPIResponseError(APIResponseError):
     """
     Error class that represents failures when parsing payload data in HTTP
     responses sent by the OCWB Weather API.

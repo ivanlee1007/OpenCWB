@@ -4,7 +4,7 @@ import logging
 from .core.ocwb import OCWB
 
 _LOGGER = logging.getLogger(__name__)
-from .core.commons.exceptions import APIRequestError, UnauthorizedError
+from .core.commons.exceptions import APIRequestError, APIResponseError, UnauthorizedError
 import voluptuous as vol
 import urllib.parse
 
@@ -82,6 +82,8 @@ class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         errors["base"] = "invalid_api_key"
                 except UnauthorizedError:
                     errors["base"] = "invalid_api_key"
+                except APIResponseError:
+                    errors["base"] = "cannot_connect"
                 except APIRequestError:
                     errors["base"] = "cannot_connect"
                 except Exception as e:
