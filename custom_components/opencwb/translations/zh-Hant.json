@@ -1,25 +1,26 @@
 {
     "config": {
         "abort": {
-            "already_configured": "\u5ea7\u6a19\u5df2\u7d93\u8a2d\u5b9a\u5b8c\u6210"
+            "already_configured": "座標已設定完成"
         },
         "error": {
-            "cannot_connect": "\u9023\u7dda\u5931\u6557",
-            "invalid_api_key": "API \u5bc6\u9470\u7121\u6548",
-			"invalid_location_name": "\u7121\u6548\u7684\u7e23\u5e02\u9109\u93ae\u540d\u7a31"
+            "cannot_connect": "連線失敗",
+            "invalid_api_key": "API 金鑰無效",
+            "invalid_location_name": "無效的縣市鄉鎮區名稱",
+            "unknown_error": "發生意外錯誤，請參考 Home Assistant 紀錄"
         },
         "step": {
             "user": {
                 "data": {
-                    "api_key": "API \u5bc6\u9470",
-                    "language": "\u8a9e\u8a00",
-                    "location_name": "\u9109\u93ae\u540d\u7a31",
-                    "latitude": "\u7def\u5ea6",
-                    "longitude": "\u7d93\u5ea6",
-                    "mode": "\u6a21\u5f0f",
-                    "name": "\u6574\u5408\u540d\u7a31"
+                    "api_key": "API 金鑰",
+                    "language": "語言",
+                    "location_name": "鄉鎮區名稱",
+                    "latitude": "緯度",
+                    "longitude": "經度",
+                    "mode": "模式",
+                    "name": "名稱"
                 },
-                "description": "\u6b32\u8a2d\u5b9a OpenCWB \u6574\u5408\u3002\u8acb\u81f3 https://opendata.cwa.gov.tw/devManual/insrtuction \u7522\u751f API \u5bc6\u9470. \u95dc\u65bc \u9109\u93ae\u540d\u7a31, \u8acb\u53c3\u95b1 https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf",
+                "description": "設定 OpenCWB 整合。請至 https://opendata.cwa.gov.tw/devManual/insrtuction 產生 API 金鑰。鄉鎮區名稱請參照 https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf",
                 "title": "OpenCWB"
             }
         }
@@ -28,8 +29,8 @@
         "step": {
             "init": {
                 "data": {
-                    "language": "\u8a9e\u8a00",
-                    "mode": "\u6a21\u5f0f"
+                    "language": "語言",
+                    "mode": "模式"
                 }
             }
         }

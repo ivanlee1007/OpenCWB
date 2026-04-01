@@ -1,26 +1,27 @@
 {
     "config": {
         "abort": {
-            "already_configured": "[%key:common::config_flow::abort::already_configured_location%]"
+            "already_configured": "Location is already configured"
         },
         "error": {
-            "invalid_api_key": "[%key:common::config_flow::error::invalid_api_key%]",
-            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "cannot_connect": "Failed to connect",
+            "invalid_api_key": "Invalid API key",
             "invalid_location_name": "Unsupported location name. Please check the location name and try again.",
             "unknown_error": "An unexpected error occurred. Please check the Home Assistant log for details."
         },
         "step": {
             "user": {
                 "data": {
-                    "api_key": "[%key:common::config_flow::data::api_key%]",
+                    "api_key": "API Key",
                     "language": "Language",
-                    "latitude": "[%key:common::config_flow::data::latitude%]",
-                    "longitude": "[%key:common::config_flow::data::longitude%]",
-                    "mode": "[%key:common::config_flow::data::mode%]",
-                    "name": "Name of the integration"
+                    "location_name": "Location Name",
+                    "latitude": "Latitude",
+                    "longitude": "Longitude",
+                    "mode": "Mode",
+                    "name": "Name"
                 },
-                "description": "Set up OpenWeatherMap integration. To generate API key go to https://openweathermap.org/appid",
-                "title": "OpenWeatherMap"
+                "description": "Set up OpenCWB integration. To generate API key go to https://opendata.cwa.gov.tw/devManual/insrtuction. For location names, please check https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf",
+                "title": "OpenCWB"
             }
         }
     },
@@ -29,7 +30,7 @@
             "init": {
                 "data": {
                     "language": "Language",
-                    "mode": "[%key:common::config_flow::data::mode%]"
+                    "mode": "Mode"
                 }
             }
         }

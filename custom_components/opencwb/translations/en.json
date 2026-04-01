@@ -6,7 +6,7 @@
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_api_key": "Invalid API key",
-			"invalid_location_name": "Invalid Location Name"
+            "invalid_location_name": "Invalid location name"
         },
         "step": {
             "user": {
@@ -17,9 +17,9 @@
                     "latitude": "Latitude",
                     "longitude": "Longitude",
                     "mode": "Mode",
-                    "name": "Name of the integration"
+                    "name": "Name"
                 },
-                "description": "Set up OpenCWB integration. To generate API key go to https://opendata.cwa.gov.tw/devManual/insrtuction. About Location Name, please check https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf",
+                "description": "Set up OpenCWB integration. To generate an API key, go to https://opendata.cwa.gov.tw/devManual/insrtuction. For valid location names, refer to https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf",
                 "title": "OpenCWB"
             }
         }
