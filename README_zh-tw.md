@@ -15,6 +15,19 @@
 
 ## 最新更新
 
+### v1.3.38
+- 強化重大氣象警特報的地區比對，支援 `恆春半島`、`蘭嶼綠島`、`基隆北海岸` 與各縣市山區等 CWA 特殊區域名稱。
+- 在警特報實體屬性新增 `matched_locations`、`unmatched_special_areas`、`match_method`，方便判斷為什麼有/沒有命中目前地點。
+- 補上 parser regression tests：過期颱風警報、多個熱帶氣旋、缺漏路徑欄位、特殊區域警特報比對。
+- 補上官方警報與災害資訊 entities 的使用文件與 automation 範例。
+
+### v1.3.37
+- 當使用者在整合選項關閉任一 warning 大項時，自動移除對應的舊 Home Assistant entities，避免關閉後實體仍殘留。
+
+### v1.3.36
+- 新增選用的 CWA 官方颱風警報、熱帶氣旋路徑、重大氣象警特報 entities。
+- 整合設定頁新增三個開關：官方颱風警報、熱帶氣旋路徑、重大氣象警特報。
+
 ### v1.3.34
 - 修正 `onecall_daily` 啟動失敗問題。
 - 根因是 current / UV one-call 查詢誤打到 `F-D0047-093`，CWA 會回 `404 Resource not found`。
@@ -49,6 +62,44 @@
 - 補上 UV index、precipitation 等 native weather 屬性。
 - 新增可手動立即更新氣象資料的按鈕實體。
 - 修正舊版 Home Assistant 的 import 相容性問題。
+
+## 選用：CWA 官方警報與災害資訊
+
+OpenCWA 可以選擇性建立 CWA 官方警報與災害資訊實體。為了避免既有使用者升級後多出額外 API 呼叫，這些功能預設為關閉。
+
+可從 **設定 > 裝置與服務 > OpenCWA > 設定** 啟用：
+
+- **啟用官方颱風警報** (`enable_typhoon_warning`)：使用 CWA `W-C0034-001` CAP 資料判斷目前是否有官方颱風警報。熱帶氣旋路徑資料本身不會被當成官方警報。
+- **啟用熱帶氣旋路徑** (`enable_tropical_cyclone_track`)：使用 CWA `W-C0034-005` 顯示目前活動中熱帶氣旋與路徑/定位資訊。
+- **啟用重大氣象警特報** (`enable_weather_alerts`)：使用 CWA 災害性天氣警特報資料，並以設定地點及可推得的上層縣市進行影響區域比對。
+
+以 `安平區` 為例，會建立以下 entities：
+
+| Entity | 說明 |
+| --- | --- |
+| `binary_sensor.opencwa_an_ping_qu_typhoon_warning` | 只有目前真的有官方颱風警報時才會是 `on`。`Cancel`、`END`、已過期 CAP、解除警報訊息都會是 `off`。 |
+| `sensor.opencwa_an_ping_qu_typhoon_warning_status` | 颱風警報狀態與 CAP 屬性，例如 headline、報數、警報類別、影響區域、生效/解除時間、颱風位置。 |
+| `sensor.opencwa_an_ping_qu_tropical_cyclone` | 目前活動中熱帶氣旋數量；屬性包含最新定位、分析路徑、預測路徑、風速、氣壓、暴風半徑等。 |
+| `binary_sensor.opencwa_an_ping_qu_weather_alert` | 重大氣象警特報是否命中目前設定地點。 |
+| `sensor.opencwa_an_ping_qu_weather_alerts` | 重大氣象警特報數量與詳細資料。屬性包含 `matched_locations`、`unmatched_special_areas`、`match_method`。 |
+
+特殊區域比對目前涵蓋 CWA 常見區域名稱，例如 `恆春半島`、`蘭嶼綠島`、`基隆北海岸`，以及 `高雄山區` 這類縣市山區名稱。若遇到 `山區`、`沿海空曠地區` 這種無法安全判定所屬地點的泛用名稱，會放在 `unmatched_special_areas` 供使用者判讀。
+
+Automation 範例：
+
+```yaml
+alias: CWA 颱風警報通知
+trigger:
+  - platform: state
+    entity_id: binary_sensor.opencwa_an_ping_qu_typhoon_warning
+    to: "on"
+action:
+  - service: notify.mobile_app_your_phone
+    data:
+      title: CWA 颱風警報
+      message: >-
+        {{ state_attr('binary_sensor.opencwa_an_ping_qu_typhoon_warning', 'headline') }}
+```
 
 # 設置
 

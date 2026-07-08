@@ -15,6 +15,19 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.3.38
+- Improve hazardous-weather alert location matching for CWA special areas such as `恆春半島`, `蘭嶼綠島`, `基隆北海岸`, and county mountain-area labels.
+- Add `matched_locations`, `unmatched_special_areas`, and `match_method` attributes to weather alert sensors.
+- Add parser regression tests for expired typhoon warnings, multiple tropical cyclones, missing track values, and special-area alert matching.
+- Document optional CWA warning entities and automation examples.
+
+### v1.3.37
+- When an optional warning group is disabled in the integration options, remove its stale Home Assistant entities from the entity registry and current states.
+
+### v1.3.36
+- Add optional CWA official typhoon warning, tropical cyclone track, and hazardous weather alert entities.
+- New integration options: official typhoon warning, tropical cyclone track, and hazardous weather alerts.
+
 ### v1.3.34
 - Fix `onecall_daily` startup failure.
 - Root cause: the current / UV one-call request was incorrectly sent to `F-D0047-093`, which returns `404 Resource not found` for the lon/lat/locationName/interval request shape.
@@ -48,6 +61,44 @@ Then restart HA.
 - Add native weather properties such as UV index and precipitation.
 - Add an update button entity for immediate weather refresh.
 - Fix older Home Assistant import compatibility issues.
+
+## Optional CWA warning entities
+
+OpenCWA can optionally create dedicated CWA warning entities. They are disabled by default to avoid extra API calls for existing users.
+
+Enable them from **Settings > Devices & services > OpenCWA > Configure**:
+
+- **Enable official typhoon warning** (`enable_typhoon_warning`): uses CWA `W-C0034-001` CAP data to identify an official Taiwan typhoon warning. Tropical-cyclone track data alone is not treated as an official warning.
+- **Enable tropical cyclone track** (`enable_tropical_cyclone_track`): uses CWA `W-C0034-005` for active tropical cyclone track/fix data.
+- **Enable hazardous weather alerts** (`enable_weather_alerts`): uses CWA hazardous-weather warnings and matches affected areas against the configured location and its parent city when available.
+
+Created entities, using `安平區` as an example location:
+
+| Entity | Meaning |
+| --- | --- |
+| `binary_sensor.opencwa_an_ping_qu_typhoon_warning` | `on` only when an official typhoon warning is currently active. `Cancel`, `END`, expired CAP messages, and解除 notices are `off`. |
+| `sensor.opencwa_an_ping_qu_typhoon_warning_status` | Typhoon warning status and CAP attributes such as headline, report number, warning type, affected areas, effective/expires, and typhoon position. |
+| `sensor.opencwa_an_ping_qu_tropical_cyclone` | Number of active tropical cyclones; attributes include latest fix, analysis fixes, forecast fixes, wind speed, pressure, and storm radius data. |
+| `binary_sensor.opencwa_an_ping_qu_weather_alert` | `on` when a hazardous-weather alert matches the configured location. |
+| `sensor.opencwa_an_ping_qu_weather_alerts` | Count and details for hazardous-weather alerts. Attributes include `matched_locations`, `unmatched_special_areas`, and `match_method`. |
+
+Special-area matching covers common CWA area labels such as `恆春半島`, `蘭嶼綠島`, `基隆北海岸`, and county mountain-area labels such as `高雄山區`. Generic labels such as `山區` or `沿海空曠地區` may be reported in `unmatched_special_areas` when they cannot be safely mapped to the configured location.
+
+Example automation:
+
+```yaml
+alias: Notify when CWA typhoon warning starts
+trigger:
+  - platform: state
+    entity_id: binary_sensor.opencwa_an_ping_qu_typhoon_warning
+    to: "on"
+action:
+  - service: notify.mobile_app_your_phone
+    data:
+      title: CWA Typhoon Warning
+      message: >-
+        {{ state_attr('binary_sensor.opencwa_an_ping_qu_typhoon_warning', 'headline') }}
+```
 
 # Setup
 

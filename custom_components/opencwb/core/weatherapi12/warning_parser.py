@@ -200,18 +200,104 @@ def parse_tropical_cyclone_track(xml_text: str | bytes | None) -> dict[str, Any]
     return {"count": len(cyclones), "cyclones": cyclones}
 
 
-def _matches_location(areas: list[str], location_name: str | list[str] | tuple[str, ...] | None) -> bool:
+SPECIAL_AREA_LOCATIONS = {
+    "蘭嶼綠島": ["臺東縣", "台東縣", "蘭嶼鄉", "綠島鄉"],
+    "恆春半島": ["屏東縣", "恆春鎮", "車城鄉", "滿州鄉", "枋山鄉", "牡丹鄉"],
+    "基隆北海岸": ["基隆市", "新北市", "萬里區", "金山區", "石門區", "三芝區", "淡水區", "瑞芳區", "貢寮區"],
+    "大臺北山區": ["臺北市", "台北市", "新北市"],
+    "桃園山區": ["桃園市"],
+    "新竹山區": ["新竹縣", "新竹市"],
+    "苗栗山區": ["苗栗縣"],
+    "臺中山區": ["臺中市", "台中市"],
+    "南投山區": ["南投縣"],
+    "嘉義山區": ["嘉義縣", "嘉義市"],
+    "臺南山區": ["臺南市", "台南市"],
+    "高雄山區": ["高雄市"],
+    "屏東山區": ["屏東縣"],
+    "宜蘭山區": ["宜蘭縣"],
+    "花蓮山區": ["花蓮縣"],
+    "臺東山區": ["臺東縣", "台東縣"],
+    "沿海空曠地區": [],
+    "山區": [],
+}
+
+
+def _location_candidates(location_name: str | list[str] | tuple[str, ...] | None) -> list[str]:
     if not location_name:
-        return bool(areas)
-    candidates = [location_name] if isinstance(location_name, str) else list(location_name)
-    candidates = [c for c in candidates if c]
+        return []
+    values = [location_name] if isinstance(location_name, str) else list(location_name)
+    candidates = []
+    for value in values:
+        if not value:
+            continue
+        value = str(value).strip()
+        if not value:
+            continue
+        candidates.append(value)
+        if value.startswith("台"):
+            candidates.append("臺" + value[1:])
+        elif value.startswith("臺"):
+            candidates.append("台" + value[1:])
+    return list(dict.fromkeys(candidates))
+
+
+def _is_special_area(area: str) -> bool:
+    if area in SPECIAL_AREA_LOCATIONS:
+        return True
+    return any(token in area for token in ("半島", "北海岸", "山區", "沿海", "空曠", "蘭嶼", "綠島"))
+
+
+def _match_area(area: str, candidates: list[str]) -> str | None:
+    for candidate in candidates:
+        if candidate == area:
+            return "direct"
+    for candidate in candidates:
+        if candidate in area or area in candidate:
+            return "direct"
+    special_candidates = SPECIAL_AREA_LOCATIONS.get(area, [])
+    for candidate in candidates:
+        if any(candidate == item or candidate in item or item in candidate for item in special_candidates):
+            return "special_area"
+    return None
+
+
+def _location_match_details(
+    areas: list[str],
+    location_name: str | list[str] | tuple[str, ...] | None,
+) -> dict[str, Any]:
+    candidates = _location_candidates(location_name)
     if not candidates:
-        return bool(areas)
+        return {
+            "active_for_location": bool(areas),
+            "matched_locations": list(areas),
+            "unmatched_special_areas": [],
+            "match_method": "all" if areas else None,
+        }
+
+    matched_locations = []
+    matched_methods = []
+    unmatched_special_areas = []
     for area in areas:
-        for candidate in candidates:
-            if candidate == area or candidate in area or area in candidate:
-                return True
-    return False
+        method = _match_area(area, candidates)
+        if method:
+            matched_locations.append(area)
+            matched_methods.append(method)
+        elif _is_special_area(area):
+            unmatched_special_areas.append(area)
+
+    if not matched_locations:
+        match_method = None
+    elif "direct" in matched_methods:
+        match_method = "direct"
+    else:
+        match_method = matched_methods[0]
+
+    return {
+        "active_for_location": bool(matched_locations),
+        "matched_locations": list(dict.fromkeys(matched_locations)),
+        "unmatched_special_areas": list(dict.fromkeys(unmatched_special_areas)),
+        "match_method": match_method,
+    }
 
 
 def parse_weather_alerts(
@@ -221,7 +307,14 @@ def parse_weather_alerts(
 ) -> dict[str, Any]:
     """Parse CWA W-C0033 weather hazard XML into active alert records."""
     if not xml_text:
-        return {"count": 0, "active_for_location": False, "alerts": []}
+        return {
+            "count": 0,
+            "active_for_location": False,
+            "matched_locations": [],
+            "unmatched_special_areas": [],
+            "match_method": None,
+            "alerts": [],
+        }
     root = ET.fromstring(xml_text)
     issue_time = _text(root, "dataset/datasetInfo/issueTime") or _text(root, "Dataset/DatasetInfo/IssueTime")
     start_time = _text(root, "dataset/datasetInfo/validTime/startTime")
@@ -233,22 +326,52 @@ def parse_weather_alerts(
         if compare_now.tzinfo is None:
             compare_now = compare_now.replace(tzinfo=timezone.utc)
         if expires.astimezone(timezone.utc) <= compare_now.astimezone(timezone.utc):
-            return {"count": 0, "active_for_location": False, "alerts": []}
+            return {
+                "count": 0,
+                "active_for_location": False,
+                "matched_locations": [],
+                "unmatched_special_areas": [],
+                "match_method": None,
+                "alerts": [],
+            }
 
     alerts = []
+    all_matched_locations = []
+    all_unmatched_special_areas = []
+    all_match_methods = []
     for hazard in root.iter():
         if _strip_ns(hazard.tag) != "hazard":
             continue
         info = _first(hazard, "info")
         areas = [area for area in (_text(loc, "locationName") for loc in _all(info, "affectedAreas/location")) if area]
+        match_details = _location_match_details(areas, location_name)
+        all_matched_locations.extend(match_details["matched_locations"])
+        all_unmatched_special_areas.extend(match_details["unmatched_special_areas"])
+        if match_details["match_method"]:
+            all_match_methods.append(match_details["match_method"])
         alerts.append({
             "phenomena": _text(info, "phenomena"),
             "significance": _text(info, "significance"),
             "affected_areas": areas,
+            "matched_locations": match_details["matched_locations"],
+            "unmatched_special_areas": match_details["unmatched_special_areas"],
+            "match_method": match_details["match_method"],
             "content_text": content_text,
             "issue_time": issue_time,
             "start_time": start_time,
             "end_time": end_time,
         })
-    active_for_location = any(_matches_location(alert.get("affected_areas", []), location_name) for alert in alerts)
-    return {"count": len(alerts), "active_for_location": active_for_location, "alerts": alerts}
+    if not all_match_methods:
+        match_method = None
+    elif "direct" in all_match_methods:
+        match_method = "direct"
+    else:
+        match_method = all_match_methods[0]
+    return {
+        "count": len(alerts),
+        "active_for_location": bool(all_matched_locations),
+        "matched_locations": list(dict.fromkeys(all_matched_locations)),
+        "unmatched_special_areas": list(dict.fromkeys(all_unmatched_special_areas)),
+        "match_method": match_method,
+        "alerts": alerts,
+    }

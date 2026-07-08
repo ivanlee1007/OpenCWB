@@ -97,7 +97,15 @@ class WarningUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.enable_weather_alerts:
             data[ATTR_WEATHER_ALERTS] = await self._safe_executor(
                 self._warning_client.weather_alerts,
-                {"count": 0, "active_for_location": False, "alerts": [], "error": None},
+                {
+                    "count": 0,
+                    "active_for_location": False,
+                    "matched_locations": [],
+                    "unmatched_special_areas": [],
+                    "match_method": None,
+                    "alerts": [],
+                    "error": None,
+                },
                 "weather alerts",
                 self._location_candidates(),
             )

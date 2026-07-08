@@ -153,8 +153,60 @@ def test_weather_alerts_extracts_active_alerts_and_location_match():
 
     assert parsed["count"] == 1
     assert parsed["active_for_location"] is True
+    assert parsed["matched_locations"] == ["高雄市"]
+    assert parsed["match_method"] == "direct"
     alert = parsed["alerts"][0]
     assert alert["phenomena"] == "陸上強風"
     assert alert["significance"] == "特報"
     assert alert["affected_areas"] == ["苗栗縣", "高雄市"]
+    assert alert["matched_locations"] == ["高雄市"]
+    assert alert["match_method"] == "direct"
     assert "強風" in alert["content_text"]
+
+
+def test_expired_typhoon_warning_cap_is_not_active():
+    parsed = parse_typhoon_warning_cap(
+        ACTIVE_TYPHOON_CAP.replace("2099-07-08T14:00:00+08:00", "2026-07-08T07:00:00+08:00"),
+        now=datetime(2026, 7, 8, tzinfo=timezone.utc),
+    )
+
+    assert parsed["active"] is False
+    assert parsed["warning_type"] == "海上陸上"
+
+
+def test_tropical_cyclone_track_handles_multiple_cyclones_and_missing_values():
+    second_cyclone = """
+      <TropicalCyclone>
+        <Year>2026</Year>
+        <TyphoonName>NOFIX</TyphoonName>
+        <CwaTyphoonName>無定位</CwaTyphoonName>
+        <AnalysisData></AnalysisData>
+      </TropicalCyclone>
+    """
+    xml = TRACK_XML.replace("    </TropicalCyclones>", second_cyclone + "\n    </TropicalCyclones>")
+
+    parsed = parse_tropical_cyclone_track(xml)
+
+    assert parsed["count"] == 2
+    assert parsed["cyclones"][1]["name"] == "NOFIX"
+    assert parsed["cyclones"][1]["latest_fix"] is None
+    assert parsed["cyclones"][1]["analysis_fixes"] == []
+
+
+def test_weather_alerts_match_special_area_to_district_and_report_method():
+    parsed = parse_weather_alerts(ALERTS_XML.replace("苗栗縣", "恆春半島"), location_name=["屏東縣", "恆春鎮"], now=datetime(2026, 7, 8, tzinfo=timezone.utc))
+
+    assert parsed["active_for_location"] is True
+    assert parsed["matched_locations"] == ["恆春半島"]
+    assert parsed["match_method"] == "special_area"
+    assert parsed["alerts"][0]["matched_locations"] == ["恆春半島"]
+    assert parsed["alerts"][0]["match_method"] == "special_area"
+
+
+def test_weather_alerts_collect_unmatched_special_areas():
+    parsed = parse_weather_alerts(ALERTS_XML.replace("苗栗縣", "蘭嶼綠島"), location_name=["臺南市", "安平區"], now=datetime(2026, 7, 8, tzinfo=timezone.utc))
+
+    assert parsed["active_for_location"] is False
+    assert parsed["matched_locations"] == []
+    assert parsed["unmatched_special_areas"] == ["蘭嶼綠島"]
+    assert parsed["alerts"][0]["unmatched_special_areas"] == ["蘭嶼綠島"]
