@@ -14,6 +14,7 @@ from homeassistant.const import (
     CONF_NAME,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
@@ -96,6 +97,14 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         CONF_LOCATION_NAME: location_name
     }
 
+    _remove_disabled_warning_entities(
+        hass,
+        config_entry,
+        enable_typhoon_warning=enable_typhoon_warning,
+        enable_tropical_cyclone_track=enable_tropical_cyclone_track,
+        enable_weather_alerts=enable_weather_alerts,
+    )
+
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
     update_listener = config_entry.add_update_listener(async_update_options)
@@ -137,6 +146,49 @@ def _get_config_value(config_entry, key, default):
     if config_entry.options and key in config_entry.options:
         return config_entry.options.get(key, default)
     return config_entry.data.get(key, default)
+
+
+def _remove_disabled_warning_entities(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    *,
+    enable_typhoon_warning: bool,
+    enable_tropical_cyclone_track: bool,
+    enable_weather_alerts: bool,
+) -> None:
+    """Remove warning entities whose option group is currently disabled.
+
+    Home Assistant keeps entity registry entries around after an integration
+    stops adding an entity. For option-controlled entity groups, remove stale
+    registry entries and state rows so disabling a group actually hides it.
+    """
+    disabled_suffixes: list[str] = []
+    if not enable_typhoon_warning:
+        disabled_suffixes.extend([
+            "-typhoon-warning-",
+            "-typhoon-warning-status-",
+        ])
+    if not enable_tropical_cyclone_track:
+        disabled_suffixes.append("-tropical-cyclone-")
+    if not enable_weather_alerts:
+        disabled_suffixes.extend([
+            "-weather-alert-",
+            "-weather-alerts-",
+        ])
+    if not disabled_suffixes:
+        return
+
+    registry = er.async_get(hass)
+    for entry in list(er.async_entries_for_config_entry(registry, config_entry.entry_id)):
+        unique_id = entry.unique_id or ""
+        if any(suffix in unique_id for suffix in disabled_suffixes):
+            _LOGGER.debug(
+                "Removing disabled OpenCWB warning entity %s (%s)",
+                entry.entity_id,
+                unique_id,
+            )
+            registry.async_remove(entry.entity_id)
+            hass.states.async_remove(entry.entity_id)
 
 
 def _get_ocwb_config(language):
