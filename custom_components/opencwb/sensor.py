@@ -1,17 +1,25 @@
 """Support for the OpenCWB (OCWB) service."""
+from homeassistant.const import ATTR_ATTRIBUTION
+
 from .abstract_ocwb_sensor import AbstractOpenCWBSensor
 from .const import (
     ATTR_API_FORECAST_DAILY,
     ATTR_API_FORECAST_HOURLY,
+    ATTR_TROPICAL_CYCLONE,
+    ATTR_TYPHOON_WARNING_STATUS,
+    ATTR_WEATHER_ALERTS,
+    ATTRIBUTION,
     CONF_LOCATION_NAME,
     DOMAIN,
     ENTRY_NAME,
+    ENTRY_WARNING_COORDINATOR,
     ENTRY_WEATHER_COORDINATOR,
     FORECAST_MODE_HOURLY,
     FORECAST_MODE_ONECALL_HOURLY,
     FORECAST_MONITORED_CONDITIONS,
     FORECAST_SENSOR_TYPES,
     MONITORED_CONDITIONS,
+    SENSOR_NAME,
     WEATHER_SENSOR_TYPES,
 )
 from .weather_update_coordinator import WeatherUpdateCoordinator
@@ -59,6 +67,36 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 weather_coordinator,
             )
         )
+
+    warning_coordinator = domain_data.get(ENTRY_WARNING_COORDINATOR)
+    if warning_coordinator is not None and warning_coordinator.any_enabled:
+        if warning_coordinator.enable_typhoon_warning:
+            entities.append(
+                OpenCWBWarningSensor(
+                    f"{name} {location_name} Typhoon Warning Status",
+                    f"{config_entry.unique_id}-typhoon-warning-status-{location_name}",
+                    ATTR_TYPHOON_WARNING_STATUS,
+                    warning_coordinator,
+                )
+            )
+        if warning_coordinator.enable_tropical_cyclone_track:
+            entities.append(
+                OpenCWBWarningSensor(
+                    f"{name} {location_name} Tropical Cyclone",
+                    f"{config_entry.unique_id}-tropical-cyclone-{location_name}",
+                    ATTR_TROPICAL_CYCLONE,
+                    warning_coordinator,
+                )
+            )
+        if warning_coordinator.enable_weather_alerts:
+            entities.append(
+                OpenCWBWarningSensor(
+                    f"{name} {location_name} Weather Alerts",
+                    f"{config_entry.unique_id}-weather-alerts-{location_name}",
+                    ATTR_WEATHER_ALERTS,
+                    warning_coordinator,
+                )
+            )
 
     async_add_entities(entities)
 
@@ -156,3 +194,44 @@ class OpenCWBForecastSensor(AbstractOpenCWBSensor):
         if forecasts:
             return self._extract_value(forecasts[0])
         return None
+
+
+class OpenCWBWarningSensor(AbstractOpenCWBSensor):
+    """Sensor exposing structured warning and typhoon data."""
+
+    def __init__(self, name, unique_id, sensor_type, warning_coordinator):
+        super().__init__(
+            name,
+            unique_id,
+            sensor_type,
+            {SENSOR_NAME: sensor_type},
+            warning_coordinator,
+        )
+        self._warning_coordinator = warning_coordinator
+        self._attr_name = name.replace("_", " ")
+        self._attr_unique_id = unique_id
+
+    @property
+    def state(self):
+        """Return concise sensor state."""
+        data = self._warning_coordinator.data.get(self._sensor_type, {})
+        if not isinstance(data, dict):
+            return None
+        if self._sensor_type == ATTR_TYPHOON_WARNING_STATUS:
+            if not data.get("active"):
+                return "none"
+            return data.get("warning_type") or data.get("headline") or "active"
+        if self._sensor_type == ATTR_TROPICAL_CYCLONE:
+            return data.get("count", 0)
+        if self._sensor_type == ATTR_WEATHER_ALERTS:
+            return data.get("count", 0)
+        return None
+
+    @property
+    def extra_state_attributes(self):
+        """Return structured warning metadata."""
+        attrs = {ATTR_ATTRIBUTION: ATTRIBUTION}
+        data = self._warning_coordinator.data.get(self._sensor_type)
+        if isinstance(data, dict):
+            attrs.update(data)
+        return attrs

@@ -21,8 +21,14 @@ from homeassistant.const import (
 from homeassistant.core import callback
 
 from .const import (
+    CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
+    CONF_ENABLE_TYPHOON_WARNING,
+    CONF_ENABLE_WEATHER_ALERTS,
     CONF_LOCATION_NAME,
     CONFIG_FLOW_VERSION,
+    DEFAULT_ENABLE_TROPICAL_CYCLONE_TRACK,
+    DEFAULT_ENABLE_TYPHOON_WARNING,
+    DEFAULT_ENABLE_WEATHER_ALERTS,
     DEFAULT_FORECAST_MODE,
     DEFAULT_NAME,
     DOMAIN,
@@ -109,6 +115,18 @@ class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_MODE, default=DEFAULT_FORECAST_MODE): vol.In(
                     FORECAST_MODES
                 ),
+                vol.Optional(
+                    CONF_ENABLE_TYPHOON_WARNING,
+                    default=DEFAULT_ENABLE_TYPHOON_WARNING,
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
+                    default=DEFAULT_ENABLE_TROPICAL_CYCLONE_TRACK,
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_WEATHER_ALERTS,
+                    default=DEFAULT_ENABLE_WEATHER_ALERTS,
+                ): bool,
                 # vol.Optional(CONF_LANGUAGE, default=DEFAULT_LANGUAGE): vol.In(
                 #     LANGUAGES
                 # ),
@@ -124,6 +142,7 @@ class OpenCWBOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize options flow."""
+        self._config_entry = config_entry
         if (MAJOR_VERSION, MINOR_VERSION) < (2024, 11):
             self.config_entry = config_entry
 
@@ -131,8 +150,8 @@ class OpenCWBOptionsFlow(config_entries.OptionsFlow):
         """Manage the options."""
         if user_input is not None:
             location_id = _is_supported_city(
-                self.config_entry.data.get(CONF_API_KEY),
-                self.config_entry.data.get(CONF_LOCATION_NAME))
+                self._config_entry.data.get(CONF_API_KEY),
+                self._config_entry.data.get(CONF_LOCATION_NAME))
             #if (location_id != ONE_CALL_URI and
             #        user_input[CONF_MODE] == FORECAST_MODE_ONECALL_DAILY):
             #    user_input[CONF_MODE] = FORECAST_MODE_ONECALL_HOURLY
@@ -149,10 +168,41 @@ class OpenCWBOptionsFlow(config_entries.OptionsFlow):
             {
                 vol.Optional(
                     CONF_MODE,
-                    default=self.config_entry.options.get(
-                        CONF_MODE, DEFAULT_FORECAST_MODE
+                    default=self._config_entry.options.get(
+                        CONF_MODE,
+                        self._config_entry.data.get(CONF_MODE, DEFAULT_FORECAST_MODE)
                     ),
                 ): vol.In(FORECAST_MODES),
+                vol.Optional(
+                    CONF_ENABLE_TYPHOON_WARNING,
+                    default=self._config_entry.options.get(
+                        CONF_ENABLE_TYPHOON_WARNING,
+                        self._config_entry.data.get(
+                            CONF_ENABLE_TYPHOON_WARNING,
+                            DEFAULT_ENABLE_TYPHOON_WARNING,
+                        ),
+                    ),
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
+                    default=self._config_entry.options.get(
+                        CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
+                        self._config_entry.data.get(
+                            CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
+                            DEFAULT_ENABLE_TROPICAL_CYCLONE_TRACK,
+                        ),
+                    ),
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_WEATHER_ALERTS,
+                    default=self._config_entry.options.get(
+                        CONF_ENABLE_WEATHER_ALERTS,
+                        self._config_entry.data.get(
+                            CONF_ENABLE_WEATHER_ALERTS,
+                            DEFAULT_ENABLE_WEATHER_ALERTS,
+                        ),
+                    ),
+                ): bool,
                 # vol.Optional(
                 #     CONF_LANGUAGE,
                 #     default=self.config_entry.options.get(

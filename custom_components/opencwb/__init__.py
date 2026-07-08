@@ -16,13 +16,20 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 
 from .const import (
+    CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
+    CONF_ENABLE_TYPHOON_WARNING,
+    CONF_ENABLE_WEATHER_ALERTS,
     CONF_LANGUAGE,
     CONF_LOCATION_NAME,
     # CONFIG_FLOW_VERSION,
+    DEFAULT_ENABLE_TROPICAL_CYCLONE_TRACK,
+    DEFAULT_ENABLE_TYPHOON_WARNING,
+    DEFAULT_ENABLE_WEATHER_ALERTS,
     DEFAULT_FORECAST_MODE,
     DEFAULT_LANGUAGE,
     DOMAIN,
     ENTRY_NAME,
+    ENTRY_WARNING_COORDINATOR,
     ENTRY_WEATHER_COORDINATOR,
     # FORECAST_MODE_FREE_DAILY,
     # FORECAST_MODE_ONECALL_DAILY,
@@ -30,6 +37,7 @@ from .const import (
     UPDATE_LISTENER,
 )
 from .weather_update_coordinator import WeatherUpdateCoordinator
+from .warning_update_coordinator import WarningUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +58,15 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     forecast_mode = _get_config_value(
         config_entry, CONF_MODE, DEFAULT_FORECAST_MODE)
     language = _get_config_value(config_entry, CONF_LANGUAGE, DEFAULT_LANGUAGE)
+    enable_typhoon_warning = _get_config_value(
+        config_entry, CONF_ENABLE_TYPHOON_WARNING, DEFAULT_ENABLE_TYPHOON_WARNING)
+    enable_tropical_cyclone_track = _get_config_value(
+        config_entry,
+        CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
+        DEFAULT_ENABLE_TROPICAL_CYCLONE_TRACK,
+    )
+    enable_weather_alerts = _get_config_value(
+        config_entry, CONF_ENABLE_WEATHER_ALERTS, DEFAULT_ENABLE_WEATHER_ALERTS)
 
     config_dict = _get_ocwb_config(language)
 
@@ -60,10 +77,22 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
     await weather_coordinator.async_config_entry_first_refresh()
 
+    warning_coordinator = WarningUpdateCoordinator(
+        ocwb,
+        location_name,
+        hass,
+        enable_typhoon_warning=enable_typhoon_warning,
+        enable_tropical_cyclone_track=enable_tropical_cyclone_track,
+        enable_weather_alerts=enable_weather_alerts,
+    )
+    if warning_coordinator.any_enabled:
+        await warning_coordinator.async_config_entry_first_refresh()
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][config_entry.entry_id] = {
         ENTRY_NAME: name,
         ENTRY_WEATHER_COORDINATOR: weather_coordinator,
+        ENTRY_WARNING_COORDINATOR: warning_coordinator,
         CONF_LOCATION_NAME: location_name
     }
 
@@ -105,7 +134,7 @@ def _filter_domain_configs(elements, domain):
 
 
 def _get_config_value(config_entry, key, default):
-    if config_entry.options:
+    if config_entry.options and key in config_entry.options:
         return config_entry.options.get(key, default)
     return config_entry.data.get(key, default)
 

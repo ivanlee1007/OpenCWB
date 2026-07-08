@@ -17,7 +17,10 @@
                     "latitude": "Latitude",
                     "longitude": "Longitude",
                     "mode": "Mode",
-                    "name": "Name"
+                    "name": "Name",
+                    "enable_typhoon_warning": "Enable official typhoon warning entities",
+                    "enable_tropical_cyclone_track": "Enable tropical cyclone track entity",
+                    "enable_weather_alerts": "Enable hazardous weather alert entities"
                 },
                 "description": "Set up OpenCWB integration. To generate an API key, go to https://opendata.cwa.gov.tw/devManual/insrtuction. For valid location names, refer to https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf",
                 "title": "OpenCWB"
@@ -29,7 +32,10 @@
             "init": {
                 "data": {
                     "language": "Language",
-                    "mode": "Mode"
+                    "mode": "Mode",
+                    "enable_typhoon_warning": "Enable official typhoon warning entities",
+                    "enable_tropical_cyclone_track": "Enable tropical cyclone track entity",
+                    "enable_weather_alerts": "Enable hazardous weather alert entities"
                 }
             }
         }
