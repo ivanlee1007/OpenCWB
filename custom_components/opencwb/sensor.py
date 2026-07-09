@@ -6,8 +6,11 @@ from .const import (
     ATTR_API_FORECAST_DAILY,
     ATTR_API_FORECAST_HOURLY,
     ATTR_TROPICAL_CYCLONE,
+    ATTR_TROPICAL_CYCLONE_NOTIFICATION,
     ATTR_TYPHOON_WARNING_STATUS,
+    ATTR_TYPHOON_WARNING_NOTIFICATION,
     ATTR_WEATHER_ALERTS,
+    ATTR_WEATHER_ALERT_NOTIFICATION,
     ATTRIBUTION,
     CONF_LOCATION_NAME,
     DOMAIN,
@@ -23,6 +26,11 @@ from .const import (
     WEATHER_SENSOR_TYPES,
 )
 from .weather_update_coordinator import WeatherUpdateCoordinator
+from .core.weatherapi12.notification_builder import (
+    build_tropical_cyclone_notification,
+    build_typhoon_warning_notification,
+    build_weather_alert_notification,
+)
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -79,6 +87,14 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                     warning_coordinator,
                 )
             )
+            entities.append(
+                OpenCWBWarningSensor(
+                    f"{name} {location_name} Typhoon Warning Notification",
+                    f"{config_entry.unique_id}-typhoon-warning-notification-{location_name}",
+                    ATTR_TYPHOON_WARNING_NOTIFICATION,
+                    warning_coordinator,
+                )
+            )
         if warning_coordinator.enable_tropical_cyclone_track:
             entities.append(
                 OpenCWBWarningSensor(
@@ -88,12 +104,28 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                     warning_coordinator,
                 )
             )
+            entities.append(
+                OpenCWBWarningSensor(
+                    f"{name} {location_name} Tropical Cyclone Notification",
+                    f"{config_entry.unique_id}-tropical-cyclone-notification-{location_name}",
+                    ATTR_TROPICAL_CYCLONE_NOTIFICATION,
+                    warning_coordinator,
+                )
+            )
         if warning_coordinator.enable_weather_alerts:
             entities.append(
                 OpenCWBWarningSensor(
                     f"{name} {location_name} Weather Alerts",
                     f"{config_entry.unique_id}-weather-alerts-{location_name}",
                     ATTR_WEATHER_ALERTS,
+                    warning_coordinator,
+                )
+            )
+            entities.append(
+                OpenCWBWarningSensor(
+                    f"{name} {location_name} Weather Alert Notification",
+                    f"{config_entry.unique_id}-weather-alert-notification-{location_name}",
+                    ATTR_WEATHER_ALERT_NOTIFICATION,
                     warning_coordinator,
                 )
             )
@@ -225,13 +257,39 @@ class OpenCWBWarningSensor(AbstractOpenCWBSensor):
             return data.get("count", 0)
         if self._sensor_type == ATTR_WEATHER_ALERTS:
             return data.get("count", 0)
+        if self._sensor_type in (
+            ATTR_TYPHOON_WARNING_NOTIFICATION,
+            ATTR_TROPICAL_CYCLONE_NOTIFICATION,
+            ATTR_WEATHER_ALERT_NOTIFICATION,
+        ):
+            return self._notification_data().get("status")
         return None
+
+    def _notification_data(self):
+        """Return ready-to-use notification payload for notification sensors."""
+        data = self._warning_coordinator.data or {}
+        if self._sensor_type == ATTR_TYPHOON_WARNING_NOTIFICATION:
+            return build_typhoon_warning_notification(data.get(ATTR_TYPHOON_WARNING_STATUS, {}))
+        if self._sensor_type == ATTR_TROPICAL_CYCLONE_NOTIFICATION:
+            return build_tropical_cyclone_notification(
+                data.get(ATTR_TROPICAL_CYCLONE, {}),
+                typhoon_warning=data.get(ATTR_TYPHOON_WARNING_STATUS, {}),
+            )
+        if self._sensor_type == ATTR_WEATHER_ALERT_NOTIFICATION:
+            return build_weather_alert_notification(data.get(ATTR_WEATHER_ALERTS, {}))
+        return {}
 
     @property
     def extra_state_attributes(self):
         """Return structured warning metadata."""
         attrs = {ATTR_ATTRIBUTION: ATTRIBUTION}
         data = self._warning_coordinator.data.get(self._sensor_type)
-        if isinstance(data, dict):
+        if self._sensor_type in (
+            ATTR_TYPHOON_WARNING_NOTIFICATION,
+            ATTR_TROPICAL_CYCLONE_NOTIFICATION,
+            ATTR_WEATHER_ALERT_NOTIFICATION,
+        ):
+            attrs.update(self._notification_data())
+        elif isinstance(data, dict):
             attrs.update(data)
         return attrs

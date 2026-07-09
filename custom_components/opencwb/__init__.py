@@ -167,6 +167,7 @@ def _remove_disabled_warning_entities(
         disabled_suffixes.extend([
             "-typhoon-warning-",
             "-typhoon-warning-status-",
+            "-typhoon-warning-notification-",
         ])
     if not enable_tropical_cyclone_track:
         disabled_suffixes.append("-tropical-cyclone-")

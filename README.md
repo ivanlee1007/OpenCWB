@@ -15,6 +15,10 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.3.39
+- Add three ready-to-use notification sensors for official typhoon warnings, tropical cyclone pre-alerts, and hazardous weather alerts.
+- Notification sensor attributes expose `title`, `message`, `severity`, `summary`, and `source_dataset` so automations can call `notify.*` without complex templates.
+
 ### v1.3.38
 - Improve hazardous-weather alert location matching for CWA special areas such as `恆春半島`, `蘭嶼綠島`, `基隆北海岸`, and county mountain-area labels.
 - Add `matched_locations`, `unmatched_special_areas`, and `match_method` attributes to weather alert sensors.
@@ -78,9 +82,12 @@ Created entities, using `安平區` as an example location:
 | --- | --- |
 | `binary_sensor.opencwa_an_ping_qu_typhoon_warning` | `on` only when an official typhoon warning is currently active. `Cancel`, `END`, expired CAP messages, and解除 notices are `off`. |
 | `sensor.opencwa_an_ping_qu_typhoon_warning_status` | Typhoon warning status and CAP attributes such as headline, report number, warning type, affected areas, effective/expires, and typhoon position. |
+| `sensor.opencwa_an_ping_qu_typhoon_warning_notification` | Ready-to-use official typhoon warning notification payload. Attributes include `title`, `message`, `severity`, and `summary`. |
 | `sensor.opencwa_an_ping_qu_tropical_cyclone` | Number of active tropical cyclones; attributes include latest fix, analysis fixes, forecast fixes, wind speed, pressure, and storm radius data. |
+| `sensor.opencwa_an_ping_qu_tropical_cyclone_notification` | Ready-to-use tropical cyclone pre-alert payload. State becomes `suppressed` when an official typhoon warning is already active. |
 | `binary_sensor.opencwa_an_ping_qu_weather_alert` | `on` when a hazardous-weather alert matches the configured location. |
 | `sensor.opencwa_an_ping_qu_weather_alerts` | Count and details for hazardous-weather alerts. Attributes include `matched_locations`, `unmatched_special_areas`, and `match_method`. |
+| `sensor.opencwa_an_ping_qu_weather_alert_notification` | Ready-to-use hazardous-weather alert notification payload with matched locations, special areas, and CWA text when available. |
 
 Special-area matching covers common CWA area labels such as `恆春半島`, `蘭嶼綠島`, `基隆北海岸`, and county mountain-area labels such as `高雄山區`. Generic labels such as `山區` or `沿海空曠地區` may be reported in `unmatched_special_areas` when they cannot be safely mapped to the configured location.
 
