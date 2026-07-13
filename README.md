@@ -15,6 +15,10 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.3.40
+- Fix hazardous-weather notifications mixing the title and affected areas of an unmatched alert with aggregate location matches from other alerts.
+- When multiple alerts match the configured location, include every matched alert in the notification and omit unrelated alerts.
+
 ### v1.3.39
 - Add three ready-to-use notification sensors for official typhoon warnings, tropical cyclone pre-alerts, and hazardous weather alerts.
 - Notification sensor attributes expose `title`, `message`, `severity`, `summary`, and `source_dataset` so automations can call `notify.*` without complex templates.

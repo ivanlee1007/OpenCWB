@@ -55,33 +55,80 @@ def build_weather_alert_notification(data: dict[str, Any] | None) -> dict[str, A
     """Build a notification payload for location-matched CWA weather alerts."""
     data = data or {}
     alerts = data.get("alerts") if isinstance(data.get("alerts"), list) else []
-    first_alert = alerts[0] if alerts and isinstance(alerts[0], dict) else {}
+    alerts = [alert for alert in alerts if isinstance(alert, dict)]
     active = bool(data.get("active_for_location"))
+    matched_alerts = [alert for alert in alerts if alert.get("matched_locations")]
+
+    # Older payloads may only expose aggregate matching metadata. Keep the
+    # single-alert case compatible while never guessing across multiple alerts.
+    if active and not matched_alerts and len(alerts) == 1 and data.get("matched_locations"):
+        matched_alerts = [{
+            **alerts[0],
+            "matched_locations": data.get("matched_locations"),
+            "match_method": data.get("match_method"),
+            "unmatched_special_areas": data.get("unmatched_special_areas"),
+        }]
+
+    display_alerts = matched_alerts if active else alerts[:1]
+    first_alert = display_alerts[0] if display_alerts else {}
     phenomena = _value(first_alert.get("phenomena"), "重大氣象")
     significance = _value(first_alert.get("significance"), "警特報")
-    title = f"⚠️ CWA {phenomena}{significance}" if active else "CWA 重大氣象警特報：目前未命中所在地"
-    message_lines = [
-        "目前地點命中 CWA 警特報。" if active else "目前有 CWA 警特報資料，但尚未命中目前設定地點。",
-        "",
-        f"類型：{phenomena}{significance}",
-        f"命中區域：{_list_text(data.get('matched_locations'))}",
-        f"比對方式：{_value(data.get('match_method'), '無命中')}",
-        "",
-        f"CWA 影響區域：{_list_text(first_alert.get('affected_areas'))}",
-    ]
-    unmatched = data.get("unmatched_special_areas") or []
-    if unmatched:
-        message_lines.extend(["", f"其他特殊區域：{_list_text(unmatched)}"])
-    content_text = first_alert.get("content_text")
-    if content_text:
-        message_lines.extend(["", "說明：", str(content_text)])
+    alert_name = f"{phenomena}{significance}"
+    matched_count = len(matched_alerts)
+
+    if active:
+        title = f"⚠️ CWA {alert_name}"
+        if matched_count > 1:
+            title += f"（另 {matched_count - 1} 項）"
+        message_lines = ["目前地點命中 CWA 警特報。"]
+        for index, alert in enumerate(matched_alerts):
+            if index:
+                message_lines.extend(["", "──────────"])
+            current_name = (
+                f"{_value(alert.get('phenomena'), '重大氣象')}"
+                f"{_value(alert.get('significance'), '警特報')}"
+            )
+            message_lines.extend([
+                "",
+                f"類型：{current_name}",
+                f"命中區域：{_list_text(alert.get('matched_locations'))}",
+                f"比對方式：{_value(alert.get('match_method'), '無命中')}",
+                "",
+                f"CWA 影響區域：{_list_text(alert.get('affected_areas'))}",
+            ])
+            unmatched = alert.get("unmatched_special_areas") or []
+            if unmatched:
+                message_lines.extend(["", f"其他特殊區域：{_list_text(unmatched)}"])
+            content_text = alert.get("content_text")
+            if content_text:
+                message_lines.extend(["", "說明：", str(content_text)])
+        summary = alert_name if matched_count == 1 else f"{alert_name}等 {matched_count} 項"
+    else:
+        title = "CWA 重大氣象警特報：目前未命中所在地"
+        message_lines = [
+            "目前有 CWA 警特報資料，但尚未命中目前設定地點。",
+            "",
+            f"類型：{alert_name}",
+            f"命中區域：{_list_text(data.get('matched_locations'))}",
+            f"比對方式：{_value(data.get('match_method'), '無命中')}",
+            "",
+            f"CWA 影響區域：{_list_text(first_alert.get('affected_areas'))}",
+        ]
+        unmatched = data.get("unmatched_special_areas") or []
+        if unmatched:
+            message_lines.extend(["", f"其他特殊區域：{_list_text(unmatched)}"])
+        content_text = first_alert.get("content_text")
+        if content_text:
+            message_lines.extend(["", "說明：", str(content_text)])
+        summary = alert_name
+
     return {
         "active": active,
         "status": "active" if active else "inactive",
         "severity": "warning" if active else "info",
         "title": title,
         "message": "\n".join(message_lines),
-        "summary": f"{phenomena}{significance}",
+        "summary": summary,
         "source_dataset": "W-C0033-002",
     }
 

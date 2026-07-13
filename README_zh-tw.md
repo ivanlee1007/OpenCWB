@@ -15,6 +15,10 @@
 
 ## 最新更新
 
+### v1.3.40
+- 修正重大氣象警特報通知將「未命中警報的標題及影響區域」與「其他警報的彙總命中地區」錯誤混用的問題。
+- 同時有多項警特報命中設定地點時，通知會完整列出每一項命中警報，並排除與目前地點無關的警報。
+
 ### v1.3.39
 - 新增三個可直接拿來通知的訊息 sensor：官方颱風警報通知、熱帶氣旋預先注意、重大氣象警特報通知。
 - 通知 sensor 的 state 為 `active` / `inactive` / `suppressed`，attributes 直接提供 `title`、`message`、`severity`、`summary`、`source_dataset`，Home Assistant automation 可直接抽取使用。

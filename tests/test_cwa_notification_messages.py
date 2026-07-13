@@ -60,6 +60,53 @@ def test_weather_alert_notification_message_contains_matched_area_and_special_ar
     assert notification["source_dataset"] == "W-C0033-002"
 
 
+def test_weather_alert_notification_uses_location_matched_alerts_only():
+    notification = build_weather_alert_notification({
+        "count": 3,
+        "active_for_location": True,
+        "matched_locations": ["臺中市山區", "臺中市"],
+        "unmatched_special_areas": ["基隆北海岸", "恆春半島"],
+        "match_method": "direct",
+        "alerts": [
+            {
+                "phenomena": "陸上強風",
+                "significance": "特報",
+                "affected_areas": ["基隆北海岸", "雲林縣", "高雄市"],
+                "matched_locations": [],
+                "unmatched_special_areas": ["基隆北海岸"],
+                "match_method": None,
+            },
+            {
+                "phenomena": "豪雨",
+                "significance": "特報",
+                "affected_areas": ["苗栗縣山區", "臺中市山區", "南投縣"],
+                "matched_locations": ["臺中市山區"],
+                "unmatched_special_areas": ["苗栗縣山區"],
+                "match_method": "direct",
+            },
+            {
+                "phenomena": "大雨",
+                "significance": "特報",
+                "affected_areas": ["新竹市", "臺中市", "彰化縣"],
+                "matched_locations": ["臺中市"],
+                "unmatched_special_areas": [],
+                "match_method": "direct",
+            },
+        ],
+    })
+
+    assert notification["title"] == "⚠️ CWA 豪雨特報（另 1 項）"
+    assert notification["summary"] == "豪雨特報等 2 項"
+    assert "類型：豪雨特報" in notification["message"]
+    assert "命中區域：臺中市山區" in notification["message"]
+    assert "CWA 影響區域：苗栗縣山區、臺中市山區、南投縣" in notification["message"]
+    assert "類型：大雨特報" in notification["message"]
+    assert "命中區域：臺中市" in notification["message"]
+    assert "CWA 影響區域：新竹市、臺中市、彰化縣" in notification["message"]
+    assert "陸上強風" not in notification["message"]
+    assert "基隆北海岸" not in notification["message"]
+
+
 def test_tropical_cyclone_notification_is_suppressed_when_official_warning_active():
     notification = build_tropical_cyclone_notification(
         {
