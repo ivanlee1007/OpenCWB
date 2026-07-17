@@ -13,6 +13,79 @@ def _value(value: Any, default: str = "未知") -> Any:
     return default if value in (None, "") else value
 
 
+def _wind_detail_lines(alert: dict[str, Any]) -> list[str]:
+    advisory = alert.get("wind_advisory")
+    if not isinstance(advisory, dict):
+        return []
+    average_level = advisory.get("average_wind_beaufort_min")
+    gust_level = advisory.get("gust_beaufort_min")
+    average_speed = advisory.get("average_wind_speed_min_m_s")
+    gust_speed = advisory.get("gust_speed_min_m_s")
+    lines = [
+        "",
+        f"官方等級：{_value(advisory.get('warning_level_label'), '資料未提供')}"
+        f"（{_value(advisory.get('danger_level'), '資料未提供')}）",
+    ]
+    if None not in (average_level, gust_level, average_speed, gust_speed):
+        lines.extend([
+            (
+                f"警戒門檻：平均風 {average_level} 級以上（約 {average_speed} m/s 起），"
+                f"或陣風 {gust_level} 級以上（約 {gust_speed} m/s 起）"
+            ),
+            "註：此為警報觸發門檻，不是現場實測風速。",
+        ])
+    else:
+        lines.append("警戒門檻：CWA 原始資料未提供完整風級或風速。")
+    danger_explanations = {
+        "yellow": "危險程度：注意；強陣風可能吹落未固定物、折損樹枝，戶外與高處作業有風險。",
+        "orange": "危險程度：警戒；可能出現顯著樹木與設施損壞，戶外活動及交通風險高。",
+        "red": "危險程度：嚴重警戒；可能造成廣泛且嚴重的樹木、建物與設施損壞，應以人身安全為優先。",
+    }
+    danger_explanation = danger_explanations.get(advisory.get("warning_level"))
+    if danger_explanation:
+        lines.append(danger_explanation)
+    lines.extend([
+        "",
+        f"作物與設施風險：{_value(advisory.get('crop_risk_level'), '資料未提供')}",
+    ])
+    for impact in advisory.get("crop_impacts") or []:
+        lines.append(f"• {impact}")
+    actions = advisory.get("recommended_actions") or []
+    if actions:
+        lines.extend(["", "建議措施："])
+        lines.extend(f"• {action}" for action in actions)
+    assessment_note = advisory.get("assessment_note")
+    if assessment_note:
+        lines.extend(["", str(assessment_note)])
+    start_time = alert.get("start_time")
+    end_time = alert.get("end_time")
+    if start_time or end_time:
+        lines.extend(["", f"有效時間：{_value(start_time, '資料未提供')} ～ {_value(end_time, '資料未提供')}"])
+    return lines
+
+
+def _wind_attributes(alerts: list[dict[str, Any]]) -> dict[str, Any]:
+    for alert in alerts:
+        advisory = alert.get("wind_advisory")
+        if not isinstance(advisory, dict):
+            continue
+        keys = (
+            "warning_level",
+            "warning_level_label",
+            "danger_level",
+            "average_wind_beaufort_min",
+            "gust_beaufort_min",
+            "average_wind_speed_min_m_s",
+            "gust_speed_min_m_s",
+            "crop_risk_level",
+            "crop_impacts",
+            "recommended_actions",
+            "assessment_note",
+        )
+        return {key: advisory.get(key) for key in keys if key in advisory}
+    return {}
+
+
 def _cyclone_name(cyclone: dict[str, Any]) -> str:
     cwa_name = cyclone.get("cwa_name")
     international_name = cyclone.get("name")
@@ -135,6 +208,7 @@ def build_weather_alert_notification(data: dict[str, Any] | None) -> dict[str, A
                 "",
                 f"CWA 影響區域：{_list_text(alert.get('affected_areas'))}",
             ])
+            message_lines.extend(_wind_detail_lines(alert))
             unmatched = alert.get("unmatched_special_areas") or []
             if unmatched:
                 message_lines.extend(["", f"其他特殊區域：{_list_text(unmatched)}"])
@@ -153,6 +227,7 @@ def build_weather_alert_notification(data: dict[str, Any] | None) -> dict[str, A
             "",
             f"CWA 影響區域：{_list_text(first_alert.get('affected_areas'))}",
         ]
+        message_lines.extend(_wind_detail_lines(first_alert))
         unmatched = data.get("unmatched_special_areas") or []
         if unmatched:
             message_lines.extend(["", f"其他特殊區域：{_list_text(unmatched)}"])
@@ -161,7 +236,7 @@ def build_weather_alert_notification(data: dict[str, Any] | None) -> dict[str, A
             message_lines.extend(["", "說明：", str(content_text)])
         summary = alert_name
 
-    return {
+    result = {
         "active": active,
         "status": "active" if active else "inactive",
         "severity": "warning" if active else "info",
@@ -170,6 +245,8 @@ def build_weather_alert_notification(data: dict[str, Any] | None) -> dict[str, A
         "summary": summary,
         "source_dataset": "W-C0033-002",
     }
+    result.update(_wind_attributes(display_alerts))
+    return result
 
 
 def build_tropical_cyclone_notification(

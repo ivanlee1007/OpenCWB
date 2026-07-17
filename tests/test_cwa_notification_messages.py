@@ -72,6 +72,51 @@ def test_weather_alert_notification_message_contains_matched_area_and_special_ar
     assert notification["source_dataset"] == "W-C0033-002"
 
 
+def test_strong_wind_notification_explains_level_danger_and_crop_risk():
+    notification = build_weather_alert_notification({
+        "count": 1,
+        "active_for_location": True,
+        "matched_locations": ["臺中市"],
+        "match_method": "direct",
+        "alerts": [{
+            "phenomena": "陸上強風",
+            "significance": "特報",
+            "affected_areas": ["臺中市"],
+            "matched_locations": ["臺中市"],
+            "match_method": "direct",
+            "start_time": "2026-07-17T16:22:00+08:00",
+            "end_time": "2026-07-18T23:00:00+08:00",
+            "content_text": "平均風6級以上或陣風8級以上發生的機率(黃色燈號)。",
+            "wind_advisory": {
+                "warning_level": "yellow",
+                "warning_level_label": "黃色燈號",
+                "danger_level": "注意",
+                "average_wind_beaufort_min": 6,
+                "gust_beaufort_min": 8,
+                "average_wind_speed_min_m_s": 10.8,
+                "gust_speed_min_m_s": 17.2,
+                "crop_risk_level": "中度",
+                "crop_impacts": ["作物可能倒伏、折枝、落花落果", "棚架與網布可能鬆脫或破損"],
+                "recommended_actions": ["加固棚架、支柱、網布與溫室外膜", "收妥或綁牢戶外資材"],
+                "assessment_note": "農業風險為依 CWA 風力門檻整理的提示，並非 CWA 官方農損預測。",
+            },
+        }],
+    })
+
+    assert "官方等級：黃色燈號（注意）" in notification["message"]
+    assert "警戒門檻：平均風 6 級以上（約 10.8 m/s 起），或陣風 8 級以上（約 17.2 m/s 起）" in notification["message"]
+    assert "此為警報觸發門檻，不是現場實測風速" in notification["message"]
+    assert "危險程度：注意；強陣風可能吹落未固定物、折損樹枝，戶外與高處作業有風險" in notification["message"]
+    assert "作物與設施風險：中度" in notification["message"]
+    assert "作物可能倒伏、折枝、落花落果" in notification["message"]
+    assert "加固棚架、支柱、網布與溫室外膜" in notification["message"]
+    assert "有效時間：2026-07-17T16:22:00+08:00 ～ 2026-07-18T23:00:00+08:00" in notification["message"]
+    assert notification["warning_level"] == "yellow"
+    assert notification["average_wind_beaufort_min"] == 6
+    assert notification["gust_beaufort_min"] == 8
+    assert notification["crop_risk_level"] == "中度"
+
+
 def test_weather_alert_notification_uses_location_matched_alerts_only():
     notification = build_weather_alert_notification({
         "count": 3,

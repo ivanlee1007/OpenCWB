@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 import xml.etree.ElementTree as ET
 from typing import Any
 
@@ -222,6 +223,109 @@ SPECIAL_AREA_LOCATIONS = {
 }
 
 
+BEAUFORT_MIN_SPEED_M_S = {
+    0: 0.0,
+    1: 0.3,
+    2: 1.6,
+    3: 3.4,
+    4: 5.5,
+    5: 8.0,
+    6: 10.8,
+    7: 13.9,
+    8: 17.2,
+    9: 20.8,
+    10: 24.5,
+    11: 28.5,
+    12: 32.7,
+    13: 37.0,
+    14: 41.5,
+    15: 46.2,
+    16: 51.0,
+    17: 56.1,
+}
+
+
+WIND_LEVEL_RISK = {
+    "yellow": {
+        "label": "黃色燈號",
+        "danger_level": "注意",
+        "crop_risk_level": "中度",
+        "crop_impacts": [
+            "高稈、莖葉柔軟或已結果作物可能倒伏、折枝、落花落果",
+            "葉片可能撕裂或出現風灼，幼苗與新梢較敏感",
+            "棚架、支柱、防蟲網、遮陰網與溫室外膜可能鬆脫或破損",
+            "盆栽、育苗盤、資材及未固定物可能傾倒或被吹落",
+        ],
+        "recommended_actions": [
+            "加固棚架、支柱、網布與溫室外膜，收妥或綁牢戶外資材",
+            "為高稈、結果中及幼苗作物加設支撐，提前採收可採收果實",
+            "暫停高處、網室屋頂及迎風面作業，巡查排水與供電安全",
+        ],
+    },
+    "orange": {
+        "label": "橙色燈號",
+        "danger_level": "警戒",
+        "crop_risk_level": "高",
+        "crop_impacts": [
+            "大面積倒伏、折枝、落花落果及葉片撕裂的機率明顯升高",
+            "幼苗、攀藤、高稈及結果負載較重的作物可能遭受嚴重損害",
+            "棚架、網布、溫室外膜、門窗與輕型設施可能破損或局部掀起",
+            "盆栽、育苗盤及農業資材可能被吹翻、吹落或成為飛散物",
+        ],
+        "recommended_actions": [
+            "立即完成棚架、網布、外膜、門窗與錨定點加固，清空迎風面鬆散物",
+            "依設施耐風設計與現場標準作業程序調整通風口、捲簾及電力設備",
+            "提前採收成熟果實，停止高處與戶外作業，避免人員進入老舊或輕型設施",
+        ],
+    },
+    "red": {
+        "label": "紅色燈號",
+        "danger_level": "嚴重警戒",
+        "crop_risk_level": "極高",
+        "crop_impacts": [
+            "作物可能大範圍倒伏、折斷、落果，葉片與新梢可能遭受嚴重損傷",
+            "溫室、棚架、防蟲網、遮陰網與外膜有重大破壞甚至整體失效風險",
+            "未固定設備、盆栽、資材及構件可能成為危險飛散物",
+        ],
+        "recommended_actions": [
+            "人員安全優先；停止戶外與設施維修作業，撤離老舊、受損或輕型設施",
+            "若安全且尚有時間，依耐風設計與既定防災程序完成斷電、固定及封閉作業",
+            "避免在強風期間臨時搶修，風勢減弱後再檢查結構、電力與灌溉系統",
+        ],
+    },
+}
+
+
+def _wind_advisory(content_text: str | None) -> dict[str, Any] | None:
+    """Extract official wind thresholds and add clearly labelled farm guidance."""
+    if not content_text:
+        return None
+    level_match = re.search(r"(黃色|橙色|紅色)燈號", content_text)
+    if not level_match:
+        return None
+    level = {"黃色": "yellow", "橙色": "orange", "紅色": "red"}[level_match.group(1)]
+    risk = WIND_LEVEL_RISK.get(level)
+    if risk is None:
+        return None
+    average_match = re.search(r"平均風\s*(\d+)\s*級以上", content_text)
+    gust_match = re.search(r"陣風\s*(\d+)\s*級以上", content_text)
+    average_beaufort = int(average_match.group(1)) if average_match else None
+    gust_beaufort = int(gust_match.group(1)) if gust_match else None
+    return {
+        "warning_level": level,
+        "warning_level_label": risk["label"],
+        "danger_level": risk["danger_level"],
+        "average_wind_beaufort_min": average_beaufort,
+        "gust_beaufort_min": gust_beaufort,
+        "average_wind_speed_min_m_s": BEAUFORT_MIN_SPEED_M_S.get(average_beaufort),
+        "gust_speed_min_m_s": BEAUFORT_MIN_SPEED_M_S.get(gust_beaufort),
+        "crop_risk_level": risk["crop_risk_level"],
+        "crop_impacts": list(risk["crop_impacts"]),
+        "recommended_actions": list(risk["recommended_actions"]),
+        "assessment_note": "農業風險為依 CWA 風力門檻整理的提示，並非 CWA 官方農損預測。",
+    }
+
+
 def _location_candidates(location_name: str | list[str] | tuple[str, ...] | None) -> list[str]:
     if not location_name:
         return []
@@ -316,51 +420,63 @@ def parse_weather_alerts(
             "alerts": [],
         }
     root = ET.fromstring(xml_text)
-    issue_time = _text(root, "dataset/datasetInfo/issueTime") or _text(root, "Dataset/DatasetInfo/IssueTime")
-    start_time = _text(root, "dataset/datasetInfo/validTime/startTime")
-    end_time = _text(root, "dataset/datasetInfo/validTime/endTime")
-    content_text = _text(root, "dataset/contents/content/contentText")
-    expires = _parse_dt(end_time)
-    if expires is not None:
-        compare_now = now or datetime.now(timezone.utc)
-        if compare_now.tzinfo is None:
-            compare_now = compare_now.replace(tzinfo=timezone.utc)
-        if expires.astimezone(timezone.utc) <= compare_now.astimezone(timezone.utc):
-            return {
-                "count": 0,
-                "active_for_location": False,
-                "matched_locations": [],
-                "unmatched_special_areas": [],
-                "match_method": None,
-                "alerts": [],
-            }
-
     alerts = []
     all_matched_locations = []
     all_unmatched_special_areas = []
     all_match_methods = []
-    for hazard in root.iter():
-        if _strip_ns(hazard.tag) != "hazard":
+    dataset_elements = [element for element in root.iter() if _strip_ns(element.tag).lower() == "dataset"]
+    datasets = [
+        element
+        for element in dataset_elements
+        if not any(
+            descendant is not element and _strip_ns(descendant.tag).lower() == "dataset"
+            for descendant in element.iter()
+        )
+    ]
+    if not datasets:
+        datasets = [root]
+    compare_now = now or datetime.now(timezone.utc)
+    if compare_now.tzinfo is None:
+        compare_now = compare_now.replace(tzinfo=timezone.utc)
+
+    for dataset in datasets:
+        issue_time = _text(dataset, "datasetInfo/issueTime") or _text(dataset, "DatasetInfo/IssueTime")
+        start_time = _text(dataset, "datasetInfo/validTime/startTime")
+        end_time = _text(dataset, "datasetInfo/validTime/endTime")
+        content_text = _text(dataset, "contents/content/contentText")
+        expires = _parse_dt(end_time)
+        if expires is not None and expires.astimezone(timezone.utc) <= compare_now.astimezone(timezone.utc):
             continue
-        info = _first(hazard, "info")
-        areas = [area for area in (_text(loc, "locationName") for loc in _all(info, "affectedAreas/location")) if area]
-        match_details = _location_match_details(areas, location_name)
-        all_matched_locations.extend(match_details["matched_locations"])
-        all_unmatched_special_areas.extend(match_details["unmatched_special_areas"])
-        if match_details["match_method"]:
-            all_match_methods.append(match_details["match_method"])
-        alerts.append({
-            "phenomena": _text(info, "phenomena"),
-            "significance": _text(info, "significance"),
-            "affected_areas": areas,
-            "matched_locations": match_details["matched_locations"],
-            "unmatched_special_areas": match_details["unmatched_special_areas"],
-            "match_method": match_details["match_method"],
-            "content_text": content_text,
-            "issue_time": issue_time,
-            "start_time": start_time,
-            "end_time": end_time,
-        })
+
+        for hazard in dataset.iter():
+            if _strip_ns(hazard.tag) != "hazard":
+                continue
+            info = _first(hazard, "info")
+            areas = [
+                area
+                for area in (_text(loc, "locationName") for loc in _all(info, "affectedAreas/location"))
+                if area
+            ]
+            match_details = _location_match_details(areas, location_name)
+            all_matched_locations.extend(match_details["matched_locations"])
+            all_unmatched_special_areas.extend(match_details["unmatched_special_areas"])
+            if match_details["match_method"]:
+                all_match_methods.append(match_details["match_method"])
+            alert = {
+                "phenomena": _text(info, "phenomena"),
+                "significance": _text(info, "significance"),
+                "affected_areas": areas,
+                "matched_locations": match_details["matched_locations"],
+                "unmatched_special_areas": match_details["unmatched_special_areas"],
+                "match_method": match_details["match_method"],
+                "content_text": content_text,
+                "issue_time": issue_time,
+                "start_time": start_time,
+                "end_time": end_time,
+            }
+            if alert["phenomena"] == "陸上強風":
+                alert["wind_advisory"] = _wind_advisory(content_text)
+            alerts.append(alert)
     if not all_match_methods:
         match_method = None
     elif "direct" in all_match_methods:

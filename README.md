@@ -15,6 +15,11 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.3.42
+- Preserve each CWA hazardous-weather dataset's own issue time, validity window, and official description instead of mixing metadata across simultaneous alerts.
+- For land strong-wind advisories, show the official yellow/orange/red level, average-wind and gust Beaufort thresholds, equivalent lower-bound speeds, validity period, danger explanation, and actionable crop/greenhouse risk guidance.
+- Agricultural impacts are explicitly labelled as threshold-based guidance, not an official CWA crop-loss forecast.
+
 ### v1.3.41
 - Alert only when the CWA track approaches Taiwan, may affect the configured coordinates, and an official CWA typhoon warning is active; otherwise expose `monitoring` without recommending a push notification.
 - Expose closest-distance, closest-approach-time, and risk-decision attributes for explainable dashboards and automations.
@@ -96,7 +101,7 @@ Created entities, using `安平區` as an example location:
 | `sensor.opencwa_an_ping_qu_tropical_cyclone_notification` | Ready-to-use tropical cyclone pre-alert payload. State becomes `suppressed` when an official typhoon warning is already active. |
 | `binary_sensor.opencwa_an_ping_qu_weather_alert` | `on` when a hazardous-weather alert matches the configured location. |
 | `sensor.opencwa_an_ping_qu_weather_alerts` | Count and details for hazardous-weather alerts. Attributes include `matched_locations`, `unmatched_special_areas`, and `match_method`. |
-| `sensor.opencwa_an_ping_qu_weather_alert_notification` | Ready-to-use hazardous-weather alert notification payload with matched locations, special areas, and CWA text when available. |
+| `sensor.opencwa_an_ping_qu_weather_alert_notification` | Ready-to-use hazardous-weather alert notification payload with matched locations, special areas, and CWA text. Land strong-wind advisories also expose official warning level/thresholds plus clearly labelled crop and greenhouse risk guidance. |
 
 Special-area matching covers common CWA area labels such as `恆春半島`, `蘭嶼綠島`, `基隆北海岸`, and county mountain-area labels such as `高雄山區`. Generic labels such as `山區` or `沿海空曠地區` may be reported in `unmatched_special_areas` when they cannot be safely mapped to the configured location.
 
