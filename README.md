@@ -15,6 +15,11 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.3.41
+- Alert only when the CWA track approaches Taiwan, may affect the configured coordinates, and an official CWA typhoon warning is active; otherwise expose `monitoring` without recommending a push notification.
+- Expose closest-distance, closest-approach-time, and risk-decision attributes for explainable dashboards and automations.
+- Display unnamed systems using their CWA tropical-depression number, such as `Unnamed tropical depression TD12`, instead of `Unknown ()`.
+
 ### v1.3.40
 - Fix hazardous-weather notifications mixing the title and affected areas of an unmatched alert with aggregate location matches from other alerts.
 - When multiple alerts match the configured location, include every matched alert in the notification and omit unrelated alerts.

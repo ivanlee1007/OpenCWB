@@ -13,6 +13,7 @@ from notification_builder import (  # noqa: E402
 def test_typhoon_warning_notification_message_contains_official_warning_fields():
     notification = build_typhoon_warning_notification({
         "active": True,
+        "alert_for_location": True,
         "headline": "海上陸上颱風警報",
         "warning_type": "海上陸上",
         "report_no": "3",
@@ -32,6 +33,17 @@ def test_typhoon_warning_notification_message_contains_official_warning_fields()
     assert "警報類型：海上陸上" in notification["message"]
     assert "警戒區：臺南市、高雄市" in notification["message"]
     assert notification["source_dataset"] == "W-C0034-001"
+
+
+def test_official_warning_without_location_risk_fails_closed():
+    notification = build_typhoon_warning_notification({
+        "active": True,
+        "headline": "海上陸上颱風警報",
+    })
+
+    assert notification["active"] is False
+    assert notification["status"] == "monitoring"
+    assert notification["severity"] == "info"
 
 
 def test_weather_alert_notification_message_contains_matched_area_and_special_areas():
@@ -111,6 +123,7 @@ def test_tropical_cyclone_notification_is_suppressed_when_official_warning_activ
     notification = build_tropical_cyclone_notification(
         {
             "count": 1,
+            "risk": {"should_alert": True, "selected_cyclone_index": 0},
             "cyclones": [{
                 "cwa_name": "巴威",
                 "name": "BAVI",
@@ -137,7 +150,7 @@ def test_tropical_cyclone_notification_is_suppressed_when_official_warning_activ
     assert "已有官方颱風警報" in notification["message"]
 
 
-def test_tropical_cyclone_notification_message_contains_latest_fix_when_not_suppressed():
+def test_track_without_risk_assessment_remains_monitoring():
     notification = build_tropical_cyclone_notification(
         {
             "count": 1,
@@ -161,11 +174,105 @@ def test_tropical_cyclone_notification_message_contains_latest_fix_when_not_supp
         typhoon_warning={"active": False},
     )
 
-    assert notification["active"] is True
-    assert notification["status"] == "active"
-    assert notification["severity"] == "advisory"
-    assert notification["title"] == "🌀 CWA 熱帶氣旋預先注意"
+    assert notification["active"] is False
+    assert notification["status"] == "monitoring"
+    assert notification["severity"] == "info"
+    assert notification["title"] == "🌀 CWA 熱帶氣旋監測中"
     assert "名稱：巴威（BAVI）" in notification["message"]
     assert "位置：北緯 17.6、東經 130.8" in notification["message"]
-    assert "不等於臺灣已有官方颱風警報" in notification["message"]
+    assert "尚未完成位置風險判定" in notification["message"]
     assert notification["source_dataset"] == "W-C0034-005"
+
+
+def test_unnamed_distant_cyclone_is_monitoring_not_an_alert():
+    notification = build_tropical_cyclone_notification(
+        {
+            "count": 1,
+            "risk": {
+                "status": "monitoring",
+                "should_alert": False,
+                "forecast_approaches_taiwan": False,
+                "location_at_risk": False,
+                "official_warning_active": False,
+                "closest_distance_to_taiwan_km": 3400.0,
+                "closest_distance_to_location_km": 3500.0,
+                "closest_approach_time": "2026-07-17T02:00:00+08:00",
+            },
+            "cyclones": [{
+                "cwa_name": None,
+                "name": None,
+                "cwa_td_no": "12",
+                "latest_fix": {
+                    "datetime": "2026-07-17T02:00:00+08:00",
+                    "latitude": 5.6,
+                    "longitude": 152.6,
+                    "pressure": 1004.0,
+                    "max_wind_speed": 15.0,
+                    "max_gust_speed": 23.0,
+                    "moving_direction": "NNE",
+                    "moving_speed": 28.0,
+                    "circle_15ms": None,
+                    "circle_25ms": None,
+                },
+            }],
+        },
+        typhoon_warning={"active": False},
+    )
+
+    assert notification["active"] is False
+    assert notification["status"] == "monitoring"
+    assert notification["severity"] == "info"
+    assert notification["title"] == "🌀 CWA 熱帶氣旋監測中"
+    assert "未命名熱帶性低氣壓 TD12" in notification["message"]
+    assert "未知" not in notification["message"]
+    assert notification["forecast_approaches_taiwan"] is False
+    assert notification["location_at_risk"] is False
+    assert notification["summary"] == "未命名熱帶性低氣壓 TD12"
+
+
+def test_monitoring_notification_describes_the_selected_cyclone():
+    notification = build_tropical_cyclone_notification(
+        {
+            "count": 2,
+            "risk": {
+                "should_alert": False,
+                "selected_cyclone_index": 1,
+            },
+            "cyclones": [
+                {"name": "REMOTE", "latest_fix": {}},
+                {
+                    "name": "BAVI",
+                    "cwa_name": "巴威",
+                    "latest_fix": {
+                        "latitude": 22.8,
+                        "longitude": 120.4,
+                    },
+                },
+            ],
+        },
+        typhoon_warning={"active": False},
+    )
+
+    assert notification["summary"] == "巴威（BAVI）"
+    assert "名稱：巴威（BAVI）" in notification["message"]
+
+
+def test_official_warning_notification_is_filtered_when_location_not_at_risk():
+    notification = build_typhoon_warning_notification({
+        "active": True,
+        "alert_for_location": False,
+        "headline": "海上颱風警報",
+        "warning_type": "海上",
+        "risk": {
+            "status": "monitoring",
+            "should_alert": False,
+            "forecast_approaches_taiwan": True,
+            "location_at_risk": False,
+            "official_warning_active": True,
+        },
+    })
+
+    assert notification["active"] is False
+    assert notification["status"] == "monitoring"
+    assert notification["severity"] == "info"
+    assert "尚未判定會影響設定地點" in notification["message"]

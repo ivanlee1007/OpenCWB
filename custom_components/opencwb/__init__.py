@@ -81,6 +81,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     warning_coordinator = WarningUpdateCoordinator(
         ocwb,
         location_name,
+        latitude,
+        longitude,
         hass,
         enable_typhoon_warning=enable_typhoon_warning,
         enable_tropical_cyclone_track=enable_tropical_cyclone_track,

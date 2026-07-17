@@ -15,6 +15,7 @@ from .const import (
     ATTR_WEATHER_ALERTS,
 )
 from .core.weatherapi12.warning_client import WarningClient
+from .core.weatherapi12.typhoon_risk import apply_typhoon_risk
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +29,8 @@ class WarningUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self,
         ocwb_weather_manager,
         location_name: str,
+        location_latitude: float,
+        location_longitude: float,
         hass,
         *,
         enable_typhoon_warning: bool = False,
@@ -36,6 +39,8 @@ class WarningUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     ) -> None:
         self._ocwb_client = ocwb_weather_manager
         self._location_name = location_name
+        self._location_latitude = location_latitude
+        self._location_longitude = location_longitude
         self.enable_typhoon_warning = enable_typhoon_warning
         self.enable_tropical_cyclone_track = enable_tropical_cyclone_track
         self.enable_weather_alerts = enable_weather_alerts
@@ -53,11 +58,11 @@ class WarningUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @property
     def any_enabled(self) -> bool:
         """Return True if any warning feature is enabled."""
-        return bool(
-            self.enable_typhoon_warning
-            or self.enable_tropical_cyclone_track
-            or self.enable_weather_alerts
-        )
+        return any((
+            self.enable_typhoon_warning,
+            self.enable_tropical_cyclone_track,
+            self.enable_weather_alerts,
+        ))
 
     def _location_candidates(self) -> list[str]:
         candidates = [self._location_name]
@@ -93,6 +98,18 @@ class WarningUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 {"count": 0, "cyclones": [], "error": None},
                 "tropical cyclone track",
             )
+
+        if self.enable_typhoon_warning or self.enable_tropical_cyclone_track:
+            track_data, warning_data = apply_typhoon_risk(
+                data.get(ATTR_TROPICAL_CYCLONE, {"count": 0, "cyclones": []}),
+                data.get(ATTR_TYPHOON_WARNING_STATUS, {"active": False}),
+                location_latitude=self._location_latitude,
+                location_longitude=self._location_longitude,
+            )
+            if self.enable_tropical_cyclone_track:
+                data[ATTR_TROPICAL_CYCLONE] = track_data
+            if self.enable_typhoon_warning:
+                data[ATTR_TYPHOON_WARNING_STATUS] = warning_data
 
         if self.enable_weather_alerts:
             data[ATTR_WEATHER_ALERTS] = await self._safe_executor(
