@@ -424,8 +424,17 @@ def parse_weather_alerts(
     all_matched_locations = []
     all_unmatched_special_areas = []
     all_match_methods = []
+    record_elements = [
+        element
+        for element in root.iter()
+        if all((
+            _strip_ns(element.tag).lower() == "record",
+            _first(element, "datasetInfo") is not None,
+            _first(element, "hazardConditions") is not None,
+        ))
+    ]
     dataset_elements = [element for element in root.iter() if _strip_ns(element.tag).lower() == "dataset"]
-    datasets = [
+    datasets = record_elements or [
         element
         for element in dataset_elements
         if not any(

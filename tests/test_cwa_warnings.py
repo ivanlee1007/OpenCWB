@@ -287,6 +287,53 @@ def test_weather_alerts_ignore_outer_dataset_wrapper_and_expired_nested_dataset(
     assert parsed["alerts"][0]["wind_advisory"]["warning_level"] == "yellow"
 
 
+def test_weather_alerts_parse_rest_api_records_as_independent_datasets():
+    xml = """<dataset>
+      <records>
+        <record>
+          <datasetInfo>
+            <issueTime>2026-07-16T08:00:00+08:00</issueTime>
+            <validTime><endTime>2026-07-16T12:00:00+08:00</endTime></validTime>
+          </datasetInfo>
+          <contents><content><contentText>已過期的大雨資料。</contentText></content></contents>
+          <hazardConditions><hazards><hazard><info>
+            <phenomena>大雨</phenomena><significance>特報</significance>
+            <affectedAreas><location><locationName>臺中市</locationName></location></affectedAreas>
+          </info></hazard></hazards></hazardConditions>
+        </record>
+        <record>
+          <datasetInfo>
+            <issueTime>2026-07-17T16:22:00+08:00</issueTime>
+            <validTime>
+              <startTime>2026-07-17T16:22:00+08:00</startTime>
+              <endTime>2026-07-18T23:00:00+08:00</endTime>
+            </validTime>
+          </datasetInfo>
+          <contents><content><contentText>
+            平均風6級以上或陣風8級以上發生的機率（黃色燈號）。
+          </contentText></content></contents>
+          <hazardConditions><hazards><hazard><info>
+            <phenomena>陸上強風</phenomena><significance>特報</significance>
+            <affectedAreas><location><locationName>臺中市</locationName></location></affectedAreas>
+          </info></hazard></hazards></hazardConditions>
+        </record>
+      </records>
+    </dataset>"""
+
+    parsed = parse_weather_alerts(
+        xml,
+        location_name="臺中市",
+        now=datetime(2026, 7, 17, 13, tzinfo=timezone.utc),
+    )
+
+    assert parsed["count"] == 1
+    assert parsed["alerts"][0]["phenomena"] == "陸上強風"
+    assert parsed["alerts"][0]["issue_time"] == "2026-07-17T16:22:00+08:00"
+    assert parsed["alerts"][0]["start_time"] == "2026-07-17T16:22:00+08:00"
+    assert parsed["alerts"][0]["content_text"].startswith("平均風6級以上")
+    assert parsed["alerts"][0]["wind_advisory"]["warning_level"] == "yellow"
+
+
 def test_wind_advisory_supports_official_orange_and_red_thresholds():
     orange = _wind_advisory("平均風9級以上或陣風11級以上（橙色燈號）")
     red = _wind_advisory("平均風12級以上或陣風14級以上（紅色燈號）")

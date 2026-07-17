@@ -15,6 +15,9 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.3.43
+- Parse the CWA REST API `dataset/records/record` response shape as independent alert records, restoring each alert's official issue time, validity period, description, wind level, and expiry handling in Home Assistant.
+
 ### v1.3.42
 - Preserve each CWA hazardous-weather dataset's own issue time, validity window, and official description instead of mixing metadata across simultaneous alerts.
 - For land strong-wind advisories, show the official yellow/orange/red level, average-wind and gust Beaufort thresholds, equivalent lower-bound speeds, validity period, danger explanation, and actionable crop/greenhouse risk guidance.
