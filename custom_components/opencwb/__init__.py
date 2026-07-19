@@ -385,6 +385,14 @@ def _migrate_legacy_agriculture_registry_entries(
     return True
 
 
+def _is_agriculture_device_identifier(domain: str, identifier: str) -> bool:
+    """Return whether a device-registry identifier belongs to agriculture."""
+    value = str(identifier)
+    return domain == DOMAIN and (
+        value.endswith("-agriculture") or "-agriculture-" in value
+    )
+
+
 def _remove_unmapped_legacy_agriculture_registry_entries(
     hass: HomeAssistant, config_entry: ConfigEntry
 ) -> None:
@@ -408,7 +416,7 @@ def _remove_unmapped_legacy_agriculture_registry_entries(
         dr.async_entries_for_config_entry(device_registry, config_entry.entry_id)
     ):
         if any(
-            domain == DOMAIN and str(identifier).endswith("-agriculture")
+            _is_agriculture_device_identifier(domain, identifier)
             for domain, identifier in device.identifiers
         ):
             device_registry.async_remove_device(device.id)
@@ -423,8 +431,8 @@ def _remove_invalid_crop_registry_entries(
     invalid_profile_ids = {
         str(subentry_id)
         for subentry_id, subentry in config_entry.subentries.items()
-        if subentry.subentry_type == SUBENTRY_TYPE_CROP
-        and str(subentry_id) not in valid_profile_ids
+        if subentry.subentry_type == SUBENTRY_TYPE_CROP and str(subentry_id)
+        not in valid_profile_ids
     }
     if not invalid_profile_ids:
         return
@@ -442,8 +450,7 @@ def _remove_invalid_crop_registry_entries(
         dr.async_entries_for_config_entry(device_registry, config_entry.entry_id)
     ):
         if any(
-            domain == DOMAIN
-            and any(
+            domain == DOMAIN and any(
                 f"-agriculture-{profile_id}" in str(identifier)
                 for profile_id in invalid_profile_ids
             )
@@ -519,11 +526,7 @@ def _remove_disabled_warning_entities(
             dr.async_entries_for_config_entry(device_registry, config_entry.entry_id)
         ):
             if any(
-                domain == DOMAIN
-                and (
-                    str(identifier).endswith("-agriculture")
-                    or "-agriculture-" in str(identifier)
-                )
+                _is_agriculture_device_identifier(domain, identifier)
                 for domain, identifier in device.identifiers
             ):
                 device_registry.async_remove_device(device.id)
