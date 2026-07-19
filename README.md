@@ -15,6 +15,10 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.4.1
+- Change the crop-name field to a searchable dropdown containing 127 official 高雄農來訊 crop names, while retaining custom entry for newly added or uncommon crops.
+- Rendering the form does not contact the agricultural provider; agriculture remains disabled by default and failure-isolated.
+
 ### v1.4.0
 - Add a fully optional nationwide agricultural guidance provider backed by 高雄農來訊: crop warnings/advisories, support status, notification payloads, and token-gated ET0/Kc/ETc/water-requirement references.
 - The provider is disabled by default and failure-isolated. Missing configuration, timeout, authentication failure, malformed/stale data, or an unsupported crop never prevents CWA weather, forecasts, or official warnings from loading.

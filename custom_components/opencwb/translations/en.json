@@ -22,7 +22,7 @@
           "enable_weather_alerts": "Enable hazardous weather alert entities",
           "enable_agriculture_advisories": "Enable optional KCG agricultural guidance",
           "agriculture_token": "KCG agriculture token (optional; required for ET0/Kc/ETc)",
-          "crop_name": "Crop name (exact platform name)",
+          "crop_name": "Crop name (search the list or enter a custom value)",
           "growth_stage": "Growth stage (optional)",
           "planting_date": "Planting date (YYYY-MM-DD, optional)",
           "area_hectares": "Cultivation area in hectares (optional)"
@@ -43,7 +43,7 @@
           "enable_weather_alerts": "Enable hazardous weather alert entities",
           "enable_agriculture_advisories": "Enable optional KCG agricultural guidance",
           "agriculture_token": "KCG agriculture token (optional; required for ET0/Kc/ETc)",
-          "crop_name": "Crop name (exact platform name)",
+          "crop_name": "Crop name (search the list or enter a custom value)",
           "growth_stage": "Growth stage (optional)",
           "planting_date": "Planting date (YYYY-MM-DD, optional)",
           "area_hectares": "Cultivation area in hectares (optional)"

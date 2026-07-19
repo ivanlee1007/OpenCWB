@@ -22,7 +22,7 @@
           "enable_weather_alerts": "啟用重大氣象警特報實體",
           "enable_agriculture_advisories": "啟用選用的高雄農來訊農業補充",
           "agriculture_token": "高雄農來訊 TOKEN（選填；ET0／Kc／ETc 必填）",
-          "crop_name": "作物名稱（須與平台名稱完全一致）",
+          "crop_name": "作物名稱（可搜尋選單，也可輸入自訂名稱）",
           "growth_stage": "生育期（選填）",
           "planting_date": "種植日期（YYYY-MM-DD，選填）",
           "area_hectares": "種植面積（公頃，選填）"
@@ -43,7 +43,7 @@
           "enable_weather_alerts": "啟用重大氣象警特報實體",
           "enable_agriculture_advisories": "啟用選用的高雄農來訊農業補充",
           "agriculture_token": "高雄農來訊 TOKEN（選填；ET0／Kc／ETc 必填）",
-          "crop_name": "作物名稱（須與平台名稱完全一致）",
+          "crop_name": "作物名稱（可搜尋選單，也可輸入自訂名稱）",
           "growth_stage": "生育期（選填）",
           "planting_date": "種植日期（YYYY-MM-DD，選填）",
           "area_hectares": "種植面積（公頃，選填）"

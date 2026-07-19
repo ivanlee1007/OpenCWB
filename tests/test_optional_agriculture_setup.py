@@ -14,6 +14,9 @@ CONST_SOURCE = (ROOT / "custom_components" / "opencwb" / "const.py").read_text(
 CONFIG_FLOW_SOURCE = (
     ROOT / "custom_components" / "opencwb" / "config_flow.py"
 ).read_text(encoding="utf-8")
+CROP_OPTIONS_PATH = (
+    ROOT / "custom_components" / "opencwb" / "agriculture_options.py"
+)
 SENSOR_SOURCE = (ROOT / "custom_components" / "opencwb" / "sensor.py").read_text(
     encoding="utf-8"
 )
@@ -65,3 +68,31 @@ def test_agriculture_stays_default_off_and_token_uses_password_selector():
     assert "DEFAULT_ENABLE_AGRICULTURE_ADVISORIES = False" in CONST_SOURCE
     assert "selector.TextSelectorType.PASSWORD" in CONFIG_FLOW_SOURCE
     assert CONFIG_FLOW_SOURCE.count("vol.Range(min=0)") == 2
+
+
+def test_crop_name_uses_searchable_custom_value_dropdown_without_provider_import():
+    assert CROP_OPTIONS_PATH.exists()
+    namespace = {}
+    exec(CROP_OPTIONS_PATH.read_text(encoding="utf-8"), namespace)
+    crop_names = namespace["CROP_NAME_OPTIONS"]
+    aliases = namespace["CROP_NAME_ALIASES"]
+    select_options = namespace["crop_select_options"]()
+
+    assert "香蕉" in crop_names
+    assert "番石榴" in crop_names
+    assert len(crop_names) == 127
+    assert tuple(sorted(set(crop_names))) == crop_names
+    assert aliases["甘藍"] == "高麗菜"
+    assert aliases["番石榴"] == "芭樂"
+    assert len(select_options) == 127
+    assert all(set(option) == {"value", "label"} for option in select_options)
+    assert len({option["value"] for option in select_options}) == 127
+    assert {option["value"] for option in select_options} == set(crop_names)
+    assert next(
+        option for option in select_options if option["value"] == "甘藍"
+    )["label"] == "甘藍（高麗菜）"
+    assert "高麗菜" not in {option["value"] for option in select_options}
+    assert "selector.SelectSelector(" in CONFIG_FLOW_SOURCE
+    assert "selector.SelectSelectorMode.DROPDOWN" in CONFIG_FLOW_SOURCE
+    assert "custom_value=True" in CONFIG_FLOW_SOURCE
+    assert ".core.agriculture" not in CONFIG_FLOW_SOURCE

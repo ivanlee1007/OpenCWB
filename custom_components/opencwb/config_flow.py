@@ -17,6 +17,7 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
+from .agriculture_options import crop_select_options
 from .const import (
     CONF_AGRICULTURE_TOKEN,
     CONF_AREA_HECTARES,
@@ -42,6 +43,18 @@ from .core.commons.exceptions import APIRequestError, APIResponseError, Unauthor
 from .core.ocwb import OCWB
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _crop_name_selector():
+    """Return a searchable provider crop list with a manual-entry fallback."""
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=list(crop_select_options()),
+            mode=selector.SelectSelectorMode.DROPDOWN,
+            custom_value=True,
+            sort=True,
+        )
+    )
 
 
 class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -135,7 +148,7 @@ class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_AGRICULTURE_TOKEN, default=""): selector.TextSelector(
                     selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
                 ),
-                vol.Optional(CONF_CROP_NAME, default=""): str,
+                vol.Optional(CONF_CROP_NAME, default=""): _crop_name_selector(),
                 vol.Optional(CONF_GROWTH_STAGE, default=""): str,
                 vol.Optional(CONF_PLANTING_DATE, default=""): str,
                 vol.Optional(CONF_AREA_HECTARES): vol.All(
@@ -232,7 +245,7 @@ class OpenCWBOptionsFlow(config_entries.OptionsFlow):
                         CONF_CROP_NAME,
                         self._config_entry.data.get(CONF_CROP_NAME, ""),
                     ),
-                ): str,
+                ): _crop_name_selector(),
                 vol.Optional(
                     CONF_GROWTH_STAGE,
                     default=self._config_entry.options.get(
