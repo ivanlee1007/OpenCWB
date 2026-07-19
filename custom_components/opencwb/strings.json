@@ -1,44 +1,54 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Location is already configured"
-        },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_api_key": "Invalid API key",
-            "invalid_location_name": "Unsupported location name. Please check the location name and try again.",
-            "unknown_error": "An unexpected error occurred. Please check the Home Assistant log for details."
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "api_key": "API Key",
-                    "language": "Language",
-                    "location_name": "Location Name",
-                    "latitude": "Latitude",
-                    "longitude": "Longitude",
-                    "mode": "Mode",
-                    "name": "Name",
-                    "enable_typhoon_warning": "Enable official typhoon warning entities",
-                    "enable_tropical_cyclone_track": "Enable tropical cyclone track entity",
-                    "enable_weather_alerts": "Enable hazardous weather alert entities"
-                },
-                "description": "Set up OpenCWB integration. To generate API key go to https://opendata.cwa.gov.tw/devManual/insrtuction. For location names, please check https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf",
-                "title": "OpenCWB"
-            }
-        }
+  "config": {
+    "abort": {"already_configured": "Location is already configured"},
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_api_key": "Invalid API key",
+      "invalid_location_name": "Unsupported location name. Please check the location name and try again.",
+      "unknown_error": "An unexpected error occurred. Please check the Home Assistant log for details."
     },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "language": "Language",
-                    "mode": "Mode",
-                    "enable_typhoon_warning": "Enable official typhoon warning entities",
-                    "enable_tropical_cyclone_track": "Enable tropical cyclone track entity",
-                    "enable_weather_alerts": "Enable hazardous weather alert entities"
-                }
-            }
-        }
+    "step": {
+      "user": {
+        "data": {
+          "api_key": "API Key",
+          "language": "Language",
+          "location_name": "Location Name",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "mode": "Mode",
+          "name": "Name",
+          "enable_typhoon_warning": "Enable official typhoon warning entities",
+          "enable_tropical_cyclone_track": "Enable tropical cyclone track entity",
+          "enable_weather_alerts": "Enable hazardous weather alert entities",
+          "enable_agriculture_advisories": "Enable optional 高雄農來訊 agricultural guidance",
+          "agriculture_token": "高雄農來訊 token (optional; required for ET0/Kc/ETc)",
+          "crop_name": "Crop name (exact platform name)",
+          "growth_stage": "Growth stage (optional)",
+          "planting_date": "Planting date (YYYY-MM-DD, optional)",
+          "area_hectares": "Cultivation area in hectares (optional)"
+        },
+        "description": "Set up OpenCWA. Agricultural guidance is optional; OpenCWA weather remains operational when it is disabled or unavailable.",
+        "title": "OpenCWA"
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "language": "Language",
+          "mode": "Mode",
+          "enable_typhoon_warning": "Enable official typhoon warning entities",
+          "enable_tropical_cyclone_track": "Enable tropical cyclone track entity",
+          "enable_weather_alerts": "Enable hazardous weather alert entities",
+          "enable_agriculture_advisories": "Enable optional 高雄農來訊 agricultural guidance",
+          "agriculture_token": "高雄農來訊 token (optional; required for ET0/Kc/ETc)",
+          "crop_name": "Crop name (exact platform name)",
+          "growth_stage": "Growth stage (optional)",
+          "planting_date": "Planting date (YYYY-MM-DD, optional)",
+          "area_hectares": "Cultivation area in hectares (optional)"
+        }
+      }
+    }
+  }
 }

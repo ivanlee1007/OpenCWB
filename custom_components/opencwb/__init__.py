@@ -17,12 +17,19 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
+    CONF_AGRICULTURE_TOKEN,
+    CONF_AREA_HECTARES,
+    CONF_CROP_NAME,
+    CONF_ENABLE_AGRICULTURE_ADVISORIES,
     CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
     CONF_ENABLE_TYPHOON_WARNING,
     CONF_ENABLE_WEATHER_ALERTS,
+    CONF_GROWTH_STAGE,
     CONF_LANGUAGE,
     CONF_LOCATION_NAME,
+    CONF_PLANTING_DATE,
     # CONFIG_FLOW_VERSION,
+    DEFAULT_ENABLE_AGRICULTURE_ADVISORIES,
     DEFAULT_ENABLE_TROPICAL_CYCLONE_TRACK,
     DEFAULT_ENABLE_TYPHOON_WARNING,
     DEFAULT_ENABLE_WEATHER_ALERTS,
@@ -30,6 +37,7 @@ from .const import (
     DEFAULT_LANGUAGE,
     DOMAIN,
     ENTRY_NAME,
+    ENTRY_AGRICULTURE_COORDINATOR,
     ENTRY_WARNING_COORDINATOR,
     ENTRY_WEATHER_COORDINATOR,
     # FORECAST_MODE_FREE_DAILY,
@@ -68,6 +76,17 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     )
     enable_weather_alerts = _get_config_value(
         config_entry, CONF_ENABLE_WEATHER_ALERTS, DEFAULT_ENABLE_WEATHER_ALERTS)
+    enable_agriculture_advisories = _get_config_value(
+        config_entry,
+        CONF_ENABLE_AGRICULTURE_ADVISORIES,
+        DEFAULT_ENABLE_AGRICULTURE_ADVISORIES,
+    )
+    agriculture_token = _get_config_value(config_entry, CONF_AGRICULTURE_TOKEN, "")
+    crop_name = _get_config_value(config_entry, CONF_CROP_NAME, "")
+    growth_stage = _get_config_value(config_entry, CONF_GROWTH_STAGE, "")
+    planting_date = _get_config_value(config_entry, CONF_PLANTING_DATE, "")
+    area_hectares = _get_config_value(config_entry, CONF_AREA_HECTARES, 0.0)
+    area_hectares = area_hectares if area_hectares and area_hectares > 0 else None
 
     config_dict = _get_ocwb_config(language)
 
@@ -91,11 +110,39 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if warning_coordinator.any_enabled:
         await warning_coordinator.async_config_entry_first_refresh()
 
+    agriculture_coordinator = None
+    if enable_agriculture_advisories:
+        try:
+            # Keep the optional provider outside the core OpenCWA import path.
+            from .agriculture_update_coordinator import AgricultureUpdateCoordinator
+
+            agriculture_coordinator = AgricultureUpdateCoordinator(
+                ocwb,
+                location_name,
+                latitude,
+                longitude,
+                hass,
+                token=agriculture_token,
+                crop=crop_name,
+                growth_stage=growth_stage,
+                planting_date=planting_date,
+                area_hectares=area_hectares,
+            )
+        except Exception as error:
+            # Optional agriculture must never prevent CWA weather setup.
+            agriculture_coordinator = None
+            _LOGGER.error(
+                "Optional agricultural provider could not be initialized (%s); "
+                "OpenCWA weather will continue without it",
+                type(error).__name__,
+            )
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][config_entry.entry_id] = {
         ENTRY_NAME: name,
         ENTRY_WEATHER_COORDINATOR: weather_coordinator,
         ENTRY_WARNING_COORDINATOR: warning_coordinator,
+        ENTRY_AGRICULTURE_COORDINATOR: agriculture_coordinator,
         CONF_LOCATION_NAME: location_name
     }
 
@@ -105,14 +152,43 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         enable_typhoon_warning=enable_typhoon_warning,
         enable_tropical_cyclone_track=enable_tropical_cyclone_track,
         enable_weather_alerts=enable_weather_alerts,
+        enable_agriculture_advisories=enable_agriculture_advisories,
     )
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+
+    if agriculture_coordinator is not None:
+        _create_optional_background_task(
+            hass,
+            config_entry,
+            _async_refresh_optional_agriculture(agriculture_coordinator),
+            "OpenCWA optional agriculture initial refresh",
+        )
 
     update_listener = config_entry.add_update_listener(async_update_options)
     hass.data[DOMAIN][config_entry.entry_id][UPDATE_LISTENER] = update_listener
 
     return True
+
+
+def _create_optional_background_task(hass, config_entry, target, name) -> None:
+    """Create a lifecycle task while retaining compatibility with older HA."""
+    if hasattr(config_entry, "async_create_background_task"):
+        config_entry.async_create_background_task(hass, target, name)
+        return
+    hass.async_create_task(target)
+
+
+async def _async_refresh_optional_agriculture(coordinator) -> None:
+    """Refresh agriculture only after core OpenCWA platforms are loaded."""
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as error:
+        _LOGGER.error(
+            "Optional agricultural provider background refresh failed (%s); "
+            "OpenCWA weather remains available",
+            type(error).__name__,
+        )
 
 
 async def async_update_options(hass: HomeAssistant, config_entry: ConfigEntry):
@@ -122,6 +198,9 @@ async def async_update_options(hass: HomeAssistant, config_entry: ConfigEntry):
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Unload a config entry."""
+    agriculture_coordinator = hass.data[DOMAIN][config_entry.entry_id].get(
+        ENTRY_AGRICULTURE_COORDINATOR
+    )
     unload_ok = all(
         await asyncio.gather(
             *[
@@ -132,6 +211,8 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         )
     )
     if unload_ok:
+        if agriculture_coordinator is not None:
+            await hass.async_add_executor_job(agriculture_coordinator.client.close)
         update_listener = hass.data[
             DOMAIN][config_entry.entry_id][UPDATE_LISTENER]
         update_listener()
@@ -157,6 +238,7 @@ def _remove_disabled_warning_entities(
     enable_typhoon_warning: bool,
     enable_tropical_cyclone_track: bool,
     enable_weather_alerts: bool,
+    enable_agriculture_advisories: bool,
 ) -> None:
     """Remove warning entities whose option group is currently disabled.
 
@@ -177,6 +259,13 @@ def _remove_disabled_warning_entities(
         disabled_suffixes.extend([
             "-weather-alert-",
             "-weather-alerts-",
+        ])
+    if not enable_agriculture_advisories:
+        disabled_suffixes.extend([
+            "-agriculture-",
+            "-crop-warning-",
+            "-crop-advisory-",
+            "-crop-supported-",
         ])
     if not disabled_suffixes:
         return

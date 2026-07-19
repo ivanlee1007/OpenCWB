@@ -15,6 +15,11 @@
 
 ## 最新更新
 
+### v1.4.0
+- 新增完全選用的「高雄農來訊」全臺農業補充：作物警戒、生產注意、支援狀態、農業通知，以及有 TOKEN 時的 ET0／Kc／ETc／需水量參考。
+- 農業 client、coordinator 與 entities 與 CWA 核心資料隔離；預設關閉，未設定、逾時、認證失敗、格式異常或資料過期都不會阻止 OpenCWA 天氣、預報與官方警報運作。
+- 農業資訊明確標示來源，且不會冒充 CWA 官方警報；無資料也不會被顯示成「安全」。
+
 ### v1.3.43
 - 依 CWA REST API 實際的 `dataset/records/record` 結構逐筆解析警特報，恢復 Home Assistant 中各警報的官方發布時間、有效時間、說明、強風燈號與過期判定。
 
@@ -83,6 +88,49 @@
 - 補上 UV index、precipitation 等 native weather 屬性。
 - 新增可手動立即更新氣象資料的按鈕實體。
 - 修正舊版 Home Assistant 的 import 相容性問題。
+
+## 選用：高雄農來訊農業補充
+
+可從 **設定 > 裝置與服務 > OpenCWA > 設定** 啟用「高雄農來訊農業補充」。此功能預設關閉；未啟用時不會建立 client、coordinator 或發出農來訊 HTTP 請求。
+
+設定項目：
+
+- `crop_name`：作物名稱，須與平台名稱完全一致。
+- `growth_stage`：選填的生育期過濾。
+- `agriculture_token`：選填並以密碼欄位保存；只有 ET0、Kc、ETc 與需水量資料需要。
+- `planting_date`、`area_hectares`：選填；計算作物需水量時使用。
+
+農業補充只查詢設定地點所屬縣市，再於本地依鄉鎮、作物及生育期過濾，不會為每個 config entry 下載完整全臺資料。建立的 entities 包括：
+
+| Entity 類型 | 用途 |
+| --- | --- |
+| `binary_sensor.*_crop_warning` | `Note <= 5` 且資料時間有效的作物警戒。 |
+| `binary_sensor.*_crop_advisory` | `Note > 5` 且資料時間有效的生產注意。 |
+| `binary_sensor.*_crop_data_supported` | 平台是否支援設定作物；`off` 不表示作物需水量為零。 |
+| `sensor.*_agriculture_notification` | 可供通知使用的作物、生育期、影響、防範及復耕摘要。 |
+| `sensor.*_agriculture_et0` | 參考蒸發散量；需要 TOKEN。 |
+| `sensor.*_agriculture_kc` | 作物係數；需要 TOKEN 且取決於平台作物覆蓋。 |
+| `sensor.*_agriculture_etc` | 作物蒸發散量；需要 TOKEN。 |
+| `sensor.*_agriculture_water_requirement` | 平台提供的作物需水量參考；僅供決策輔助，不會直接控制灌溉。 |
+
+農來訊失敗時，既有 CWA entities 仍正常更新。農業 entity 會標示 `provider_available`、`stale`、`last_success_at` 與不含憑證的 `error_code`；最後成功資料會保留並標示過期，不會以「沒有警告」取代通訊失敗。
+
+通知範例：
+
+```yaml
+alias: OpenCWA 作物農業警戒通知
+trigger:
+  - platform: state
+    entity_id: binary_sensor.opencwa_xin_she_qu_crop_warning
+    to: "on"
+action:
+  - service: notify.mobile_app_your_phone
+    data:
+      title: "{{ state_attr('sensor.opencwa_xin_she_qu_agriculture_notification', 'title') }}"
+      message: "{{ state_attr('sensor.opencwa_xin_she_qu_agriculture_notification', 'message') }}"
+```
+
+> 農業資料來自高雄農來訊，天氣資料來自中央氣象署；OpenCWA 整理或推導的內容不是 CWA 官方農損預測。無資料、無 timestamp、不支援作物與服務失敗都不等同安全。
 
 ## 選用：CWA 官方警報與災害資訊
 

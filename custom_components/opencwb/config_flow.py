@@ -1,12 +1,8 @@
 """Config flow for OpenCWB."""
 import logging
-
-from .core.ocwb import OCWB
-
-_LOGGER = logging.getLogger(__name__)
-from .core.commons.exceptions import APIRequestError, APIResponseError, UnauthorizedError
-import voluptuous as vol
 import urllib.parse
+
+import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import (
@@ -16,16 +12,24 @@ from homeassistant.const import (
     CONF_MODE,
     CONF_NAME,
     MAJOR_VERSION,
-    MINOR_VERSION
+    MINOR_VERSION,
 )
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 
 from .const import (
+    CONF_AGRICULTURE_TOKEN,
+    CONF_AREA_HECTARES,
+    CONF_CROP_NAME,
+    CONF_ENABLE_AGRICULTURE_ADVISORIES,
     CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
     CONF_ENABLE_TYPHOON_WARNING,
     CONF_ENABLE_WEATHER_ALERTS,
+    CONF_GROWTH_STAGE,
     CONF_LOCATION_NAME,
+    CONF_PLANTING_DATE,
     CONFIG_FLOW_VERSION,
+    DEFAULT_ENABLE_AGRICULTURE_ADVISORIES,
     DEFAULT_ENABLE_TROPICAL_CYCLONE_TRACK,
     DEFAULT_ENABLE_TYPHOON_WARNING,
     DEFAULT_ENABLE_WEATHER_ALERTS,
@@ -33,10 +37,11 @@ from .const import (
     DEFAULT_NAME,
     DOMAIN,
     FORECAST_MODES,
-#    FORECAST_MODE_ONECALL_HOURLY,
-#    FORECAST_MODE_ONECALL_DAILY
 )
-from .core.weatherapi12.uris import ONE_CALL_URI
+from .core.commons.exceptions import APIRequestError, APIResponseError, UnauthorizedError
+from .core.ocwb import OCWB
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -71,10 +76,6 @@ class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     urllib.parse.quote_plus(
                         location_name) + "-" + user_input[CONF_MODE])
                 self._abort_if_unique_id_configured()
-
-                #if (location_id != ONE_CALL_URI and
-                #        user_input[CONF_MODE] == FORECAST_MODE_ONECALL_DAILY):
-                #    user_input[CONF_MODE] = FORECAST_MODE_ONECALL_HOURLY
 
                 try:
                     api_online = await _is_ocwb_api_online(
@@ -127,9 +128,19 @@ class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_ENABLE_WEATHER_ALERTS,
                     default=DEFAULT_ENABLE_WEATHER_ALERTS,
                 ): bool,
-                # vol.Optional(CONF_LANGUAGE, default=DEFAULT_LANGUAGE): vol.In(
-                #     LANGUAGES
-                # ),
+                vol.Optional(
+                    CONF_ENABLE_AGRICULTURE_ADVISORIES,
+                    default=DEFAULT_ENABLE_AGRICULTURE_ADVISORIES,
+                ): bool,
+                vol.Optional(CONF_AGRICULTURE_TOKEN, default=""): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                ),
+                vol.Optional(CONF_CROP_NAME, default=""): str,
+                vol.Optional(CONF_GROWTH_STAGE, default=""): str,
+                vol.Optional(CONF_PLANTING_DATE, default=""): str,
+                vol.Optional(CONF_AREA_HECTARES): vol.All(
+                    vol.Coerce(float), vol.Range(min=0)
+                ),
             }
         )
 
@@ -149,13 +160,6 @@ class OpenCWBOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
-            location_id = _is_supported_city(
-                self._config_entry.data.get(CONF_API_KEY),
-                self._config_entry.data.get(CONF_LOCATION_NAME))
-            #if (location_id != ONE_CALL_URI and
-            #        user_input[CONF_MODE] == FORECAST_MODE_ONECALL_DAILY):
-            #    user_input[CONF_MODE] = FORECAST_MODE_ONECALL_HOURLY
-
             return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
@@ -203,6 +207,53 @@ class OpenCWBOptionsFlow(config_entries.OptionsFlow):
                         ),
                     ),
                 ): bool,
+                vol.Optional(
+                    CONF_ENABLE_AGRICULTURE_ADVISORIES,
+                    default=self._config_entry.options.get(
+                        CONF_ENABLE_AGRICULTURE_ADVISORIES,
+                        self._config_entry.data.get(
+                            CONF_ENABLE_AGRICULTURE_ADVISORIES,
+                            DEFAULT_ENABLE_AGRICULTURE_ADVISORIES,
+                        ),
+                    ),
+                ): bool,
+                vol.Optional(
+                    CONF_AGRICULTURE_TOKEN,
+                    default=self._config_entry.options.get(
+                        CONF_AGRICULTURE_TOKEN,
+                        self._config_entry.data.get(CONF_AGRICULTURE_TOKEN, ""),
+                    ),
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                ),
+                vol.Optional(
+                    CONF_CROP_NAME,
+                    default=self._config_entry.options.get(
+                        CONF_CROP_NAME,
+                        self._config_entry.data.get(CONF_CROP_NAME, ""),
+                    ),
+                ): str,
+                vol.Optional(
+                    CONF_GROWTH_STAGE,
+                    default=self._config_entry.options.get(
+                        CONF_GROWTH_STAGE,
+                        self._config_entry.data.get(CONF_GROWTH_STAGE, ""),
+                    ),
+                ): str,
+                vol.Optional(
+                    CONF_PLANTING_DATE,
+                    default=self._config_entry.options.get(
+                        CONF_PLANTING_DATE,
+                        self._config_entry.data.get(CONF_PLANTING_DATE, ""),
+                    ),
+                ): str,
+                vol.Optional(
+                    CONF_AREA_HECTARES,
+                    default=self._config_entry.options.get(
+                        CONF_AREA_HECTARES,
+                        self._config_entry.data.get(CONF_AREA_HECTARES, 0.0),
+                    ),
+                ): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 # vol.Optional(
                 #     CONF_LANGUAGE,
                 #     default=self.config_entry.options.get(

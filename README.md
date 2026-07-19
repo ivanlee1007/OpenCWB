@@ -15,6 +15,11 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.4.0
+- Add a fully optional nationwide agricultural guidance provider backed by 高雄農來訊: crop warnings/advisories, support status, notification payloads, and token-gated ET0/Kc/ETc/water-requirement references.
+- The provider is disabled by default and failure-isolated. Missing configuration, timeout, authentication failure, malformed/stale data, or an unsupported crop never prevents CWA weather, forecasts, or official warnings from loading.
+- Keep CWA and agricultural attribution separate. Missing agricultural data is never presented as a safe condition.
+
 ### v1.3.43
 - Parse the CWA REST API `dataset/records/record` response shape as independent alert records, restoring each alert's official issue time, validity period, description, wind level, and expiry handling in Home Assistant.
 
@@ -82,6 +87,40 @@ Then restart HA.
 - Add native weather properties such as UV index and precipitation.
 - Add an update button entity for immediate weather refresh.
 - Fix older Home Assistant import compatibility issues.
+
+## Optional 高雄農來訊 agricultural guidance
+
+Enable **KCG agricultural guidance** from **Settings > Devices & services > OpenCWA > Configure**. When disabled, OpenCWA does not construct the provider client/coordinator or make agricultural HTTP requests.
+
+Optional settings include an exact crop name, growth stage, planting date, cultivation area, and a password-masked provider token. The token is only required for ET0, Kc, ETc, and water-requirement endpoints; crop warnings and support checks remain tokenless.
+
+Created entities include:
+
+- `binary_sensor.*_crop_warning`
+- `binary_sensor.*_crop_advisory`
+- `binary_sensor.*_crop_data_supported`
+- `sensor.*_agriculture_notification`
+- `sensor.*_agriculture_et0`
+- `sensor.*_agriculture_kc`
+- `sensor.*_agriculture_etc`
+- `sensor.*_agriculture_water_requirement`
+
+Only the configured county/city is downloaded and township/crop/growth-stage filtering is performed locally. Provider failures retain the last successful snapshot as stale and expose non-secret availability/error metadata. They never stop the independent CWA coordinators.
+
+```yaml
+alias: Notify OpenCWA crop warning
+trigger:
+  - platform: state
+    entity_id: binary_sensor.opencwa_xin_she_qu_crop_warning
+    to: "on"
+action:
+  - service: notify.mobile_app_your_phone
+    data:
+      title: "{{ state_attr('sensor.opencwa_xin_she_qu_agriculture_notification', 'title') }}"
+      message: "{{ state_attr('sensor.opencwa_xin_she_qu_agriculture_notification', 'message') }}"
+```
+
+Agricultural guidance is attributed to 高雄農來訊; weather remains attributed to CWA. OpenCWA-derived guidance is not an official CWA crop-loss forecast, and no data/unsupported/stale/unavailable never means safe.
 
 ## Optional CWA warning entities
 

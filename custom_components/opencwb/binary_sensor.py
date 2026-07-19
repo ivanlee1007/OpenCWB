@@ -7,6 +7,10 @@ from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import (
+    ATTR_AGRICULTURE,
+    ATTR_AGRICULTURE_ADVISORY,
+    ATTR_AGRICULTURE_SUPPORTED,
+    ATTR_AGRICULTURE_WARNING,
     ATTRIBUTION,
     ATTR_TYPHOON_WARNING,
     ATTR_TYPHOON_WARNING_STATUS,
@@ -16,22 +20,21 @@ from .const import (
     DEFAULT_NAME,
     DOMAIN,
     ENTRY_NAME,
+    ENTRY_AGRICULTURE_COORDINATOR,
     ENTRY_WARNING_COORDINATOR,
     MANUFACTURER,
 )
+from .agriculture_state import agriculture_binary_available
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
     """Set up OpenCWB binary warning sensors."""
     domain_data = hass.data[DOMAIN][config_entry.entry_id]
     warning_coordinator = domain_data.get(ENTRY_WARNING_COORDINATOR)
-    if warning_coordinator is None or not warning_coordinator.any_enabled:
-        return
-
     name = domain_data[ENTRY_NAME]
     location_name = domain_data[CONF_LOCATION_NAME]
     entities = []
-    if warning_coordinator.enable_typhoon_warning:
+    if warning_coordinator is not None and warning_coordinator.enable_typhoon_warning:
         entities.append(
             OpenCWBWarningBinarySensor(
                 f"{name} {location_name} Typhoon Warning",
@@ -41,7 +44,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
                 warning_coordinator,
             )
         )
-    if warning_coordinator.enable_weather_alerts:
+    if warning_coordinator is not None and warning_coordinator.enable_weather_alerts:
         entities.append(
             OpenCWBWarningBinarySensor(
                 f"{name} {location_name} Weather Alert",
@@ -51,7 +54,36 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
                 warning_coordinator,
             )
         )
-    async_add_entities(entities)
+    agriculture_coordinator = domain_data.get(ENTRY_AGRICULTURE_COORDINATOR)
+    if agriculture_coordinator is not None:
+        entities.extend([
+            OpenCWBWarningBinarySensor(
+                f"{name} {location_name} Crop Warning",
+                f"{config_entry.unique_id}-crop-warning-{location_name}",
+                ATTR_AGRICULTURE_WARNING,
+                ATTR_AGRICULTURE,
+                agriculture_coordinator,
+                agriculture=True,
+            ),
+            OpenCWBWarningBinarySensor(
+                f"{name} {location_name} Crop Advisory",
+                f"{config_entry.unique_id}-crop-advisory-{location_name}",
+                ATTR_AGRICULTURE_ADVISORY,
+                ATTR_AGRICULTURE,
+                agriculture_coordinator,
+                agriculture=True,
+            ),
+            OpenCWBWarningBinarySensor(
+                f"{name} {location_name} Crop Data Supported",
+                f"{config_entry.unique_id}-crop-supported-{location_name}",
+                ATTR_AGRICULTURE_SUPPORTED,
+                ATTR_AGRICULTURE,
+                agriculture_coordinator,
+                agriculture=True,
+            ),
+        ])
+    if entities:
+        async_add_entities(entities)
 
 
 class OpenCWBWarningBinarySensor(BinarySensorEntity):
@@ -60,18 +92,29 @@ class OpenCWBWarningBinarySensor(BinarySensorEntity):
     _attr_attribution = ATTRIBUTION
     _attr_device_class = BinarySensorDeviceClass.SAFETY
 
-    def __init__(self, name, unique_id, state_key, attrs_key, coordinator):
+    def __init__(
+        self, name, unique_id, state_key, attrs_key, coordinator, *, agriculture=False
+    ):
         self._attr_name = name.replace("_", " ")
         self._attr_unique_id = unique_id
         self._state_key = state_key
         self._attrs_key = attrs_key
         self._coordinator = coordinator
+        self._agriculture = agriculture
+        self._source_attribution = (
+            "Agricultural guidance provided by 高雄農來訊"
+            if agriculture
+            else ATTRIBUTION
+        )
+        self._attr_attribution = self._source_attribution
         split_unique_id = unique_id.split("-")
+        base_device_id = f"{split_unique_id[0]}-{split_unique_id[1]}"
+        device_id = f"{base_device_id}-agriculture" if agriculture else base_device_id
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,
-            identifiers={(DOMAIN, f"{split_unique_id[0]}-{split_unique_id[1]}")},
-            manufacturer=MANUFACTURER,
-            name=DEFAULT_NAME,
+            identifiers={(DOMAIN, device_id)},
+            manufacturer="OpenCWA with 高雄農來訊" if agriculture else MANUFACTURER,
+            name="OpenCWA 農業氣象補充" if agriculture else DEFAULT_NAME,
         )
 
     @property
@@ -81,8 +124,13 @@ class OpenCWBWarningBinarySensor(BinarySensorEntity):
 
     @property
     def available(self):
-        """Return availability."""
-        return self._coordinator.last_update_success
+        """Return availability without treating stale agriculture as a safe off."""
+        if not self._coordinator.last_update_success:
+            return False
+        if self._agriculture:
+            snapshot = (self._coordinator.data or {}).get(ATTR_AGRICULTURE)
+            return agriculture_binary_available(snapshot, self._state_key)
+        return True
 
     @property
     def is_on(self):
@@ -92,7 +140,7 @@ class OpenCWBWarningBinarySensor(BinarySensorEntity):
     @property
     def extra_state_attributes(self):
         """Expose warning metadata on the binary sensor too."""
-        attrs = {ATTR_ATTRIBUTION: ATTRIBUTION}
+        attrs = {ATTR_ATTRIBUTION: self._source_attribution}
         data = self._coordinator.data.get(self._attrs_key)
         if isinstance(data, dict):
             attrs.update(data)

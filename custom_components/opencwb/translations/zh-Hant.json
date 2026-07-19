@@ -1,44 +1,54 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "座標已設定完成"
-        },
-        "error": {
-            "cannot_connect": "連線失敗",
-            "invalid_api_key": "API 金鑰無效",
-            "invalid_location_name": "無效的縣市鄉鎮區名稱",
-            "unknown_error": "發生意外錯誤，請參考 Home Assistant 紀錄"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "api_key": "API 金鑰",
-                    "language": "語言",
-                    "location_name": "鄉鎮區名稱",
-                    "latitude": "緯度",
-                    "longitude": "經度",
-                    "mode": "模式",
-                    "name": "名稱",
-                    "enable_typhoon_warning": "啟用官方颱風警報實體",
-                    "enable_tropical_cyclone_track": "啟用熱帶氣旋路徑實體",
-                    "enable_weather_alerts": "啟用重大氣象警特報實體"
-                },
-                "description": "設定 OpenCWB 整合。請至 https://opendata.cwa.gov.tw/devManual/insrtuction 產生 API 金鑰。鄉鎮區名稱請參照 https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf",
-                "title": "OpenCWB"
-            }
-        }
+  "config": {
+    "abort": {"already_configured": "座標已設定完成"},
+    "error": {
+      "cannot_connect": "連線失敗",
+      "invalid_api_key": "API 金鑰無效",
+      "invalid_location_name": "無效的縣市鄉鎮區名稱",
+      "unknown_error": "發生意外錯誤，請參考 Home Assistant 紀錄"
     },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "language": "語言",
-                    "mode": "模式",
-                    "enable_typhoon_warning": "啟用官方颱風警報實體",
-                    "enable_tropical_cyclone_track": "啟用熱帶氣旋路徑實體",
-                    "enable_weather_alerts": "啟用重大氣象警特報實體"
-                }
-            }
-        }
+    "step": {
+      "user": {
+        "data": {
+          "api_key": "API 金鑰",
+          "language": "語言",
+          "location_name": "鄉鎮區名稱",
+          "latitude": "緯度",
+          "longitude": "經度",
+          "mode": "模式",
+          "name": "名稱",
+          "enable_typhoon_warning": "啟用官方颱風警報實體",
+          "enable_tropical_cyclone_track": "啟用熱帶氣旋路徑實體",
+          "enable_weather_alerts": "啟用重大氣象警特報實體",
+          "enable_agriculture_advisories": "啟用選用的高雄農來訊農業補充",
+          "agriculture_token": "高雄農來訊 TOKEN（選填；ET0／Kc／ETc 必填）",
+          "crop_name": "作物名稱（須與平台名稱完全一致）",
+          "growth_stage": "生育期（選填）",
+          "planting_date": "種植日期（YYYY-MM-DD，選填）",
+          "area_hectares": "種植面積（公頃，選填）"
+        },
+        "description": "設定 OpenCWA。農業補充完全選用；關閉或來源無法使用時，OpenCWA 天氣、預報與警報仍會正常運作。",
+        "title": "OpenCWA"
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "language": "語言",
+          "mode": "模式",
+          "enable_typhoon_warning": "啟用官方颱風警報實體",
+          "enable_tropical_cyclone_track": "啟用熱帶氣旋路徑實體",
+          "enable_weather_alerts": "啟用重大氣象警特報實體",
+          "enable_agriculture_advisories": "啟用選用的高雄農來訊農業補充",
+          "agriculture_token": "高雄農來訊 TOKEN（選填；ET0／Kc／ETc 必填）",
+          "crop_name": "作物名稱（須與平台名稱完全一致）",
+          "growth_stage": "生育期（選填）",
+          "planting_date": "種植日期（YYYY-MM-DD，選填）",
+          "area_hectares": "種植面積（公頃，選填）"
+        }
+      }
+    }
+  }
 }

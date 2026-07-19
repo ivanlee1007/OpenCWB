@@ -1,8 +1,16 @@
 """Support for the OpenCWB (OCWB) service."""
 from homeassistant.const import ATTR_ATTRIBUTION
+from homeassistant.helpers.device_registry import DeviceEntryType
+from homeassistant.helpers.entity import DeviceInfo
 
 from .abstract_ocwb_sensor import AbstractOpenCWBSensor
 from .const import (
+    ATTR_AGRICULTURE,
+    ATTR_AGRICULTURE_ET0,
+    ATTR_AGRICULTURE_ETC,
+    ATTR_AGRICULTURE_KC,
+    ATTR_AGRICULTURE_NOTIFICATION,
+    ATTR_AGRICULTURE_WATER_REQUIREMENT,
     ATTR_API_FORECAST_DAILY,
     ATTR_API_FORECAST_HOURLY,
     ATTR_TROPICAL_CYCLONE,
@@ -15,6 +23,7 @@ from .const import (
     CONF_LOCATION_NAME,
     DOMAIN,
     ENTRY_NAME,
+    ENTRY_AGRICULTURE_COORDINATOR,
     ENTRY_WARNING_COORDINATOR,
     ENTRY_WEATHER_COORDINATOR,
     FORECAST_MODE_HOURLY,
@@ -31,6 +40,7 @@ from .core.weatherapi12.notification_builder import (
     build_typhoon_warning_notification,
     build_weather_alert_notification,
 )
+from .agriculture_state import agriculture_sensor_available
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -57,13 +67,11 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         )
 
     for sensor_type in FORECAST_MONITORED_CONDITIONS:
-        if (
-            weather_coordinator.forecast_mode in (
-                FORECAST_MODE_HOURLY,
-                FORECAST_MODE_ONECALL_HOURLY,
-            )
-            and sensor_type == "templow"
-        ):
+        is_hourly = weather_coordinator.forecast_mode in (
+            FORECAST_MODE_HOURLY,
+            FORECAST_MODE_ONECALL_HOURLY,
+        )
+        if is_hourly and sensor_type == "templow":
             continue
         unique_id = f"{config_entry.unique_id}-forecast-{sensor_type}-{location_name}"
         entities.append(
@@ -132,6 +140,27 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     async_add_entities(entities)
 
+    agriculture_coordinator = domain_data.get(ENTRY_AGRICULTURE_COORDINATOR)
+    if agriculture_coordinator is not None:
+        agriculture_types = (
+            (ATTR_AGRICULTURE, "Agricultural Advisory Status", None),
+            (ATTR_AGRICULTURE_NOTIFICATION, "Agricultural Advisory Notification", None),
+            (ATTR_AGRICULTURE_ET0, "Reference Evapotranspiration", "mm/d"),
+            (ATTR_AGRICULTURE_KC, "Crop Coefficient", None),
+            (ATTR_AGRICULTURE_ETC, "Crop Evapotranspiration", "mm/d"),
+            (ATTR_AGRICULTURE_WATER_REQUIREMENT, "Crop Water Requirement", "t"),
+        )
+        async_add_entities([
+            OpenCWBAgricultureSensor(
+                f"{name} {location_name} {label}",
+                f"{config_entry.unique_id}-agriculture-{sensor_type}-{location_name}",
+                sensor_type,
+                agriculture_coordinator,
+                unit,
+            )
+            for sensor_type, label, unit in agriculture_types
+        ])
+
 
 class OpenCWBSensor(AbstractOpenCWBSensor):
     """Implementation of an OpenCWB sensor."""
@@ -155,7 +184,6 @@ class OpenCWBSensor(AbstractOpenCWBSensor):
         self._weather_coordinator = weather_coordinator
         self._attr_name = name.replace("_", " ")
         self._attr_unique_id = unique_id
-
 
     @property
     def state(self):
@@ -292,4 +320,73 @@ class OpenCWBWarningSensor(AbstractOpenCWBSensor):
             attrs.update(self._notification_data())
         elif isinstance(data, dict):
             attrs.update(data)
+        return attrs
+
+
+class OpenCWBAgricultureSensor(AbstractOpenCWBSensor):
+    """Sensor for optional agricultural guidance and irrigation references."""
+
+    def __init__(self, name, unique_id, sensor_type, coordinator, unit=None):
+        configuration = {SENSOR_NAME: sensor_type}
+        if unit is not None:
+            configuration["sensor_unit"] = unit
+        super().__init__(name, unique_id, sensor_type, configuration, coordinator)
+        self._agriculture_coordinator = coordinator
+        split_unique_id = unique_id.split("-")
+        self._attr_device_info = DeviceInfo(
+            entry_type=DeviceEntryType.SERVICE,
+            identifiers={(DOMAIN, f"{split_unique_id[0]}-{split_unique_id[1]}-agriculture")},
+            manufacturer="OpenCWA with 高雄農來訊",
+            name="OpenCWA 農業氣象補充",
+        )
+
+    @property
+    def attribution(self):
+        """Return the agricultural provider attribution."""
+        return "Agricultural guidance provided by 高雄農來訊"
+
+    @property
+    def state(self):
+        data = self._agriculture_coordinator.data or {}
+        value = data.get(self._sensor_type)
+        if self._sensor_type == ATTR_AGRICULTURE and isinstance(value, dict):
+            return value.get("status")
+        if self._sensor_type == ATTR_AGRICULTURE_NOTIFICATION and isinstance(value, dict):
+            return value.get("status")
+        return value
+
+    @property
+    def available(self):
+        """Return availability only for confirmed agricultural data."""
+        if not self._agriculture_coordinator.last_update_success:
+            return False
+        data = self._agriculture_coordinator.data or {}
+        return agriculture_sensor_available(
+            data.get(ATTR_AGRICULTURE),
+            self._sensor_type,
+            data.get(self._sensor_type),
+            irrigation=data.get("agriculture_irrigation"),
+        )
+
+    @property
+    def extra_state_attributes(self):
+        data = self._agriculture_coordinator.data or {}
+        value = data.get(self._sensor_type)
+        attrs = {
+            ATTR_ATTRIBUTION: "Agricultural guidance provided by 高雄農來訊",
+            "agricultural_source": "高雄農來訊",
+            "official_cwa_alert": False,
+        }
+        if isinstance(value, dict):
+            attrs.update(value)
+        elif self._sensor_type in (
+            ATTR_AGRICULTURE_ET0,
+            ATTR_AGRICULTURE_KC,
+            ATTR_AGRICULTURE_ETC,
+            ATTR_AGRICULTURE_WATER_REQUIREMENT,
+        ):
+            irrigation = data.get("agriculture_irrigation")
+            if isinstance(irrigation, dict):
+                attrs.update(irrigation)
+            attrs["advisory_only"] = True
         return attrs
