@@ -1,6 +1,7 @@
 """Config flow for OpenCWB."""
 import logging
 import urllib.parse
+import uuid
 
 import voluptuous as vol
 
@@ -18,10 +19,12 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .agriculture_options import crop_select_options
+from .agriculture_profiles import SUBENTRY_TYPE_CROP, normalize_crop_profile
 from .const import (
     CONF_AGRICULTURE_TOKEN,
     CONF_AREA_HECTARES,
     CONF_CROP_NAME,
+    CONF_CLEAR_AGRICULTURE_TOKEN,
     CONF_ENABLE_AGRICULTURE_ADVISORIES,
     CONF_ENABLE_TROPICAL_CYCLONE_TRACK,
     CONF_ENABLE_TYPHOON_WARNING,
@@ -68,6 +71,14 @@ class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
         return OpenCWBOptionsFlow(config_entry)
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry
+    ) -> dict[str, type[config_entries.ConfigSubentryFlow]]:
+        """Return the crop records users may repeatedly add to a farm."""
+        return {SUBENTRY_TYPE_CROP: CropSubentryFlowHandler}
 
     async def async_step_user(self, user_input=None):
         """Handle a flow initialized by the user."""
@@ -148,12 +159,6 @@ class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_AGRICULTURE_TOKEN, default=""): selector.TextSelector(
                     selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
                 ),
-                vol.Optional(CONF_CROP_NAME, default=""): _crop_name_selector(),
-                vol.Optional(CONF_GROWTH_STAGE, default=""): str,
-                vol.Optional(CONF_PLANTING_DATE, default=""): str,
-                vol.Optional(CONF_AREA_HECTARES): vol.All(
-                    vol.Coerce(float), vol.Range(min=0)
-                ),
             }
         )
 
@@ -173,7 +178,19 @@ class OpenCWBOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            options = dict(user_input)
+            replacement_token = str(options.pop(CONF_AGRICULTURE_TOKEN, "") or "").strip()
+            clear_token = bool(options.pop(CONF_CLEAR_AGRICULTURE_TOKEN, False))
+            current_token = self._config_entry.options.get(
+                CONF_AGRICULTURE_TOKEN,
+                self._config_entry.data.get(CONF_AGRICULTURE_TOKEN, ""),
+            )
+            options[CONF_AGRICULTURE_TOKEN] = (
+                replacement_token
+                if replacement_token
+                else "" if clear_token else current_token
+            )
+            return self.async_create_entry(title="", data=options)
 
         return self.async_show_form(
             step_id="init",
@@ -232,48 +249,85 @@ class OpenCWBOptionsFlow(config_entries.OptionsFlow):
                 ): bool,
                 vol.Optional(
                     CONF_AGRICULTURE_TOKEN,
-                    default=self._config_entry.options.get(
-                        CONF_AGRICULTURE_TOKEN,
-                        self._config_entry.data.get(CONF_AGRICULTURE_TOKEN, ""),
-                    ),
+                    default="",
                 ): selector.TextSelector(
                     selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
                 ),
                 vol.Optional(
-                    CONF_CROP_NAME,
-                    default=self._config_entry.options.get(
-                        CONF_CROP_NAME,
-                        self._config_entry.data.get(CONF_CROP_NAME, ""),
-                    ),
-                ): _crop_name_selector(),
-                vol.Optional(
-                    CONF_GROWTH_STAGE,
-                    default=self._config_entry.options.get(
-                        CONF_GROWTH_STAGE,
-                        self._config_entry.data.get(CONF_GROWTH_STAGE, ""),
-                    ),
-                ): str,
-                vol.Optional(
-                    CONF_PLANTING_DATE,
-                    default=self._config_entry.options.get(
-                        CONF_PLANTING_DATE,
-                        self._config_entry.data.get(CONF_PLANTING_DATE, ""),
-                    ),
-                ): str,
-                vol.Optional(
-                    CONF_AREA_HECTARES,
-                    default=self._config_entry.options.get(
-                        CONF_AREA_HECTARES,
-                        self._config_entry.data.get(CONF_AREA_HECTARES, 0.0),
-                    ),
-                ): vol.All(vol.Coerce(float), vol.Range(min=0)),
-                # vol.Optional(
-                #     CONF_LANGUAGE,
-                #     default=self.config_entry.options.get(
-                #         ONF_LANGUAGE, DEFAULT_LANGUAGE
-                #     ),
-                # ): vol.In(LANGUAGES),
+                    CONF_CLEAR_AGRICULTURE_TOKEN,
+                    default=False,
+                ): bool,
             }
+        )
+
+
+def _crop_profile_schema(defaults=None):
+    """Build the reusable crop add/reconfigure form."""
+    defaults = defaults or {}
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_CROP_NAME, default=defaults.get(CONF_CROP_NAME, "")
+            ): _crop_name_selector(),
+            vol.Optional(
+                CONF_GROWTH_STAGE, default=defaults.get(CONF_GROWTH_STAGE, "")
+            ): str,
+            vol.Optional(
+                CONF_PLANTING_DATE, default=defaults.get(CONF_PLANTING_DATE, "")
+            ): str,
+            vol.Optional(
+                CONF_AREA_HECTARES,
+                default=defaults.get(CONF_AREA_HECTARES) or 0.0,
+            ): vol.All(vol.Coerce(float), vol.Range(min=0)),
+        }
+    )
+
+
+class CropSubentryFlowHandler(config_entries.ConfigSubentryFlow):
+    """Add and reconfigure independently identified crop records."""
+
+    async def async_step_user(self, user_input=None):
+        """Add one crop to the farm."""
+        errors = {}
+        defaults = user_input or {}
+        if user_input is not None:
+            try:
+                profile = normalize_crop_profile(user_input)
+            except ValueError:
+                errors["base"] = "invalid_crop_profile"
+            else:
+                return self.async_create_entry(
+                    title=profile[CONF_CROP_NAME],
+                    data=profile,
+                    unique_id=uuid.uuid4().hex,
+                )
+        return self.async_show_form(
+            step_id="user",
+            data_schema=_crop_profile_schema(defaults),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(self, user_input=None):
+        """Edit one crop without changing its stable subentry identity."""
+        subentry = self._get_reconfigure_subentry()
+        errors = {}
+        defaults = user_input or subentry.data
+        if user_input is not None:
+            try:
+                profile = normalize_crop_profile(user_input)
+            except ValueError:
+                errors["base"] = "invalid_crop_profile"
+            else:
+                return self.async_update_and_abort(
+                    self._get_entry(),
+                    subentry,
+                    data=profile,
+                    title=profile[CONF_CROP_NAME],
+                )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=_crop_profile_schema(defaults),
+            errors=errors,
         )
 
 

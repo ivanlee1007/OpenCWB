@@ -41,7 +41,9 @@ def test_agriculture_coordinator_has_initial_unavailable_data_before_background_
 
 
 def test_agriculture_provider_import_remains_inside_enabled_branch():
-    enabled_index = INIT_SOURCE.index("if enable_agriculture_advisories:")
+    enabled_index = INIT_SOURCE.index(
+        "if enable_agriculture_advisories and crop_profiles:"
+    )
     import_index = INIT_SOURCE.index(
         "from .agriculture_update_coordinator import AgricultureUpdateCoordinator"
     )
@@ -67,7 +69,7 @@ def test_config_entry_owns_background_refresh_and_closes_provider_session():
 def test_agriculture_stays_default_off_and_token_uses_password_selector():
     assert "DEFAULT_ENABLE_AGRICULTURE_ADVISORIES = False" in CONST_SOURCE
     assert "selector.TextSelectorType.PASSWORD" in CONFIG_FLOW_SOURCE
-    assert CONFIG_FLOW_SOURCE.count("vol.Range(min=0)") == 2
+    assert CONFIG_FLOW_SOURCE.count("vol.Range(min=0)") == 1
 
 
 def test_crop_name_uses_searchable_custom_value_dropdown_without_provider_import():

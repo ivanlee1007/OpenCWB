@@ -15,6 +15,12 @@ Then restart HA.
 
 ## Latest changes
 
+### v1.5.0
+- Model one OpenCWA config entry as a farm/location with any number of native Home Assistant crop subentries.
+- Add, edit, and remove crop records independently. Each crop keeps its own growth stage, planting date, area, warnings, notification, and irrigation-reference entities.
+- Fetch city crop weather, catalog, and warning rules once per farm update, then build isolated per-crop snapshots. Stable subentry IDs prevent entity churn when crops are renamed or reordered.
+- Existing 1.4.x single-crop settings migrate losslessly to the first crop subentry.
+
 ### v1.4.1
 - Change the crop-name field to a searchable dropdown containing 127 official 高雄農來訊 crop names, while retaining custom entry for newly added or uncommon crops.
 - Rendering the form does not contact the agricultural provider; agriculture remains disabled by default and failure-isolated.
@@ -96,33 +102,13 @@ Then restart HA.
 
 Enable **KCG agricultural guidance** from **Settings > Devices & services > OpenCWA > Configure**. When disabled, OpenCWA does not construct the provider client/coordinator or make agricultural HTTP requests.
 
-Optional settings include an exact crop name, growth stage, planting date, cultivation area, and a password-masked provider token. The token is only required for ET0, Kc, ETc, and water-requirement endpoints; crop warnings and support checks remain tokenless.
+The main OpenCWA entry represents the farm/location and stores the shared enable switch and password-masked provider token. Use the native **Add crop** action on the OpenCWA integration page to add as many crop records, planting batches, or fields as needed. Every crop record independently stores its searchable crop name, growth stage, planting date, and cultivation area. Crop records can be edited or removed without changing other crop entities.
 
-Created entities include:
+Each crop creates an independent agriculture device with warning, advisory, support, notification, ET0, Kc, ETc, and water-requirement entities. Entity identity uses the stable Home Assistant crop subentry ID rather than the editable crop name or list order.
 
-- `binary_sensor.*_crop_warning`
-- `binary_sensor.*_crop_advisory`
-- `binary_sensor.*_crop_data_supported`
-- `sensor.*_agriculture_notification`
-- `sensor.*_agriculture_et0`
-- `sensor.*_agriculture_kc`
-- `sensor.*_agriculture_etc`
-- `sensor.*_agriculture_water_requirement`
+The token is only required for ET0, Kc, ETc, and water-requirement endpoints; crop warnings and support checks remain tokenless. City crop weather, catalog, and warning rules are downloaded once per farm update and then filtered locally for every configured crop. Provider or parser failure for one crop never stops CWA coordinators or replaces another crop's valid snapshot.
 
-Only the configured county/city is downloaded and township/crop/growth-stage filtering is performed locally. Provider failures retain the last successful snapshot as stale and expose non-secret availability/error metadata. They never stop the independent CWA coordinators.
-
-```yaml
-alias: Notify OpenCWA crop warning
-trigger:
-  - platform: state
-    entity_id: binary_sensor.opencwa_xin_she_qu_crop_warning
-    to: "on"
-action:
-  - service: notify.mobile_app_your_phone
-    data:
-      title: "{{ state_attr('sensor.opencwa_xin_she_qu_agriculture_notification', 'title') }}"
-      message: "{{ state_attr('sensor.opencwa_xin_she_qu_agriculture_notification', 'message') }}"
-```
+If a legacy area value is invalid, OpenCWA creates a visible `⚠` crop record and retains the original value as recovery metadata; edit that crop once to repair it. In Options, leave the token field blank to keep the stored token, or check **Clear stored agricultural token** to remove it.
 
 Agricultural guidance is attributed to 高雄農來訊; weather remains attributed to CWA. OpenCWA-derived guidance is not an official CWA crop-loss forecast, and no data/unsupported/stale/unavailable never means safe.
 

@@ -15,6 +15,12 @@
 
 ## 最新更新
 
+### v1.5.0
+- 一個 OpenCWA config entry 現在代表一個農場／地點，可透過 Home Assistant 原生作物子項目持續新增任意數量的作物、種植批次或田區。
+- 每筆作物可獨立新增、編輯及刪除，並各自保存生育期、種植日期、面積、警戒、通知與灌溉參考 entities。
+- 每次農場更新只抓一次縣市作物資料、catalog 與 warning rules，再為每筆作物建立隔離 snapshot；穩定 subentry ID 避免改名或排序造成 entity ID 重建。
+- 既有 1.4.x 單一作物設定會無損遷移為第一筆作物子項目。
+
 ### v1.4.1
 - 「作物名稱」改為內建 127 種高雄農來訊官方作物名稱的可搜尋下拉選單，並保留自訂輸入，讓使用者不必猜測平台名稱。
 - 顯示設定頁時不會呼叫農業 provider；農業功能維持預設關閉與 failure-isolated。
@@ -95,44 +101,21 @@
 
 ## 選用：高雄農來訊農業補充
 
-可從 **設定 > 裝置與服務 > OpenCWA > 設定** 啟用「高雄農來訊農業補充」。此功能預設關閉；未啟用時不會建立 client、coordinator 或發出農來訊 HTTP 請求。
+可從 **設定 > 裝置與服務 > OpenCWA > 設定** 啟用「高雄農來訊農業補充」。此功能預設關閉；未啟用時不會建立 client、coordinator、農業 entities 或發出農來訊 HTTP 請求。
 
-設定項目：
+主 OpenCWA entry 代表農場／地點，只保存共用的農業啟用開關與密碼遮罩 TOKEN。回到 OpenCWA 整合頁後，使用 Home Assistant 原生的 **新增作物** 動作，可依需求持續增加任意數量的作物、不同種植批次或田區。每筆作物可獨立設定：
 
-- `crop_name`：作物名稱，須與平台名稱完全一致。
-- `growth_stage`：選填的生育期過濾。
-- `agriculture_token`：選填並以密碼欄位保存；只有 ET0、Kc、ETc 與需水量資料需要。
-- `planting_date`、`area_hectares`：選填；計算作物需水量時使用。
+- 作物名稱：127 種官方名稱的可搜尋選單，另保留自訂值。
+- 生育期。
+- 種植日期。
+- 種植面積（公頃）。
 
-農業補充只查詢設定地點所屬縣市，再於本地依鄉鎮、作物及生育期過濾，不會為每個 config entry 下載完整全臺資料。建立的 entities 包括：
+每筆作物都有獨立的農業 device，以及警戒、生產注意、平台支援、通知、ET0、Kc、ETc 與需水量 entities。entity identity 使用不會因改名或排序而改變的 Home Assistant crop subentry ID；編輯或刪除其中一筆不會改變其他作物的 unique ID。
 
-| Entity 類型 | 用途 |
-| --- | --- |
-| `binary_sensor.*_crop_warning` | `Note <= 5` 且資料時間有效的作物警戒。 |
-| `binary_sensor.*_crop_advisory` | `Note > 5` 且資料時間有效的生產注意。 |
-| `binary_sensor.*_crop_data_supported` | 平台是否支援設定作物；`off` 不表示作物需水量為零。 |
-| `sensor.*_agriculture_notification` | 可供通知使用的作物、生育期、影響、防範及復耕摘要。 |
-| `sensor.*_agriculture_et0` | 參考蒸發散量；需要 TOKEN。 |
-| `sensor.*_agriculture_kc` | 作物係數；需要 TOKEN 且取決於平台作物覆蓋。 |
-| `sensor.*_agriculture_etc` | 作物蒸發散量；需要 TOKEN。 |
-| `sensor.*_agriculture_water_requirement` | 平台提供的作物需水量參考；僅供決策輔助，不會直接控制灌溉。 |
+每次更新只查詢一次設定地點所屬縣市的作物氣象、catalog 與 warning rules，再於本地依鄉鎮、作物及生育期分別過濾。TOKEN-gated 灌溉參考才依各作物、種植日期與面積個別查詢。單一作物 parser／灌溉失敗不會覆蓋其他作物資料，農來訊整體失敗也不會阻止 CWA entities 更新。
 
-農來訊失敗時，既有 CWA entities 仍正常更新。農業 entity 會標示 `provider_available`、`stale`、`last_success_at` 與不含憑證的 `error_code`；最後成功資料會保留並標示過期，不會以「沒有警告」取代通訊失敗。
-
-通知範例：
-
-```yaml
-alias: OpenCWA 作物農業警戒通知
-trigger:
-  - platform: state
-    entity_id: binary_sensor.opencwa_xin_she_qu_crop_warning
-    to: "on"
-action:
-  - service: notify.mobile_app_your_phone
-    data:
-      title: "{{ state_attr('sensor.opencwa_xin_she_qu_agriculture_notification', 'title') }}"
-      message: "{{ state_attr('sensor.opencwa_xin_she_qu_agriculture_notification', 'message') }}"
-```
+既有 1.4.x 的單一 `crop_name`、`growth_stage`、`planting_date`、`area_hectares` 會在升級時自動遷移成第一筆作物，不需重新輸入。
+若舊面積值無法解析，OpenCWA 會建立可見的 `⚠` 作物紀錄並保留原值作為修復資訊；編輯該作物一次即可修正。Options 中 TOKEN 欄留白會保留既有 TOKEN，勾選「清除已儲存的農業 TOKEN」才會刪除。
 
 > 農業資料來自高雄農來訊，天氣資料來自中央氣象署；OpenCWA 整理或推導的內容不是 CWA 官方農損預測。無資料、無 timestamp、不支援作物與服務失敗都不等同安全。
 

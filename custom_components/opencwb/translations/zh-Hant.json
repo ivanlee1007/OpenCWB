@@ -1,6 +1,8 @@
 {
   "config": {
-    "abort": {"already_configured": "座標已設定完成"},
+    "abort": {
+      "already_configured": "座標已設定完成"
+    },
     "error": {
       "cannot_connect": "連線失敗",
       "invalid_api_key": "API 金鑰無效",
@@ -21,11 +23,7 @@
           "enable_tropical_cyclone_track": "啟用熱帶氣旋路徑實體",
           "enable_weather_alerts": "啟用重大氣象警特報實體",
           "enable_agriculture_advisories": "啟用選用的高雄農來訊農業補充",
-          "agriculture_token": "高雄農來訊 TOKEN（選填；ET0／Kc／ETc 必填）",
-          "crop_name": "作物名稱（可搜尋選單，也可輸入自訂名稱）",
-          "growth_stage": "生育期（選填）",
-          "planting_date": "種植日期（YYYY-MM-DD，選填）",
-          "area_hectares": "種植面積（公頃，選填）"
+          "agriculture_token": "高雄農來訊 TOKEN（選填；ET0／Kc／ETc 必填）"
         },
         "description": "設定 OpenCWA。農業補充完全選用；關閉或來源無法使用時，OpenCWA 天氣、預報與警報仍會正常運作。",
         "title": "OpenCWA"
@@ -43,11 +41,48 @@
           "enable_weather_alerts": "啟用重大氣象警特報實體",
           "enable_agriculture_advisories": "啟用選用的高雄農來訊農業補充",
           "agriculture_token": "高雄農來訊 TOKEN（選填；ET0／Kc／ETc 必填）",
-          "crop_name": "作物名稱（可搜尋選單，也可輸入自訂名稱）",
-          "growth_stage": "生育期（選填）",
-          "planting_date": "種植日期（YYYY-MM-DD，選填）",
-          "area_hectares": "種植面積（公頃，選填）"
+          "clear_agriculture_token": "清除已儲存的農業 TOKEN"
+        },
+        "data_description": {
+          "clear_agriculture_token": "勾選以刪除既有 TOKEN；密碼欄留白則保留目前 TOKEN。"
         }
+      }
+    }
+  },
+  "config_subentries": {
+    "crop": {
+      "entry_type": "作物",
+      "initiate_flow": {
+        "user": "新增作物",
+        "reconfigure": "編輯作物"
+      },
+      "step": {
+        "user": {
+          "title": "新增作物",
+          "description": "在此 OpenCWA 農場新增一筆作物、種植批次或田區。可依需求持續新增任意數量。",
+          "data": {
+            "crop_name": "作物名稱（可搜尋選單，也可輸入自訂名稱）",
+            "growth_stage": "生育期（選填）",
+            "planting_date": "種植日期（YYYY-MM-DD，選填）",
+            "area_hectares": "種植面積（公頃，選填）"
+          }
+        },
+        "reconfigure": {
+          "title": "編輯作物",
+          "description": "編輯此作物設定，不會改變既有實體的穩定識別碼。",
+          "data": {
+            "crop_name": "作物名稱（可搜尋選單，也可輸入自訂名稱）",
+            "growth_stage": "生育期（選填）",
+            "planting_date": "種植日期（YYYY-MM-DD，選填）",
+            "area_hectares": "種植面積（公頃，選填）"
+          }
+        }
+      },
+      "abort": {
+        "reconfigure_successful": "作物設定已成功更新。"
+      },
+      "error": {
+        "invalid_crop_profile": "作物名稱不可空白，面積不可為負數。"
       }
     }
   }

@@ -150,16 +150,24 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             (ATTR_AGRICULTURE_ETC, "Crop Evapotranspiration", "mm/d"),
             (ATTR_AGRICULTURE_WATER_REQUIREMENT, "Crop Water Requirement", "t"),
         )
-        async_add_entities([
-            OpenCWBAgricultureSensor(
-                f"{name} {location_name} {label}",
-                f"{config_entry.unique_id}-agriculture-{sensor_type}-{location_name}",
-                sensor_type,
-                agriculture_coordinator,
-                unit,
+        for profile_id, profile in agriculture_coordinator.crop_profiles.items():
+            crop_name = profile["crop_name"]
+            async_add_entities(
+                [
+                    OpenCWBAgricultureSensor(
+                        f"{name} {location_name} {crop_name} {label}",
+                        f"{config_entry.unique_id}-agriculture-{profile_id}-{sensor_type}",
+                        sensor_type,
+                        agriculture_coordinator,
+                        profile_id,
+                        crop_name,
+                        f"{config_entry.unique_id}-agriculture-{profile_id}",
+                        unit,
+                    )
+                    for sensor_type, label, unit in agriculture_types
+                ],
+                config_subentry_id=profile_id,
             )
-            for sensor_type, label, unit in agriculture_types
-        ])
 
 
 class OpenCWBSensor(AbstractOpenCWBSensor):
@@ -324,21 +332,36 @@ class OpenCWBWarningSensor(AbstractOpenCWBSensor):
 
 
 class OpenCWBAgricultureSensor(AbstractOpenCWBSensor):
-    """Sensor for optional agricultural guidance and irrigation references."""
+    """Sensor for one optional crop profile and its irrigation references."""
 
-    def __init__(self, name, unique_id, sensor_type, coordinator, unit=None):
+    def __init__(
+        self,
+        name,
+        unique_id,
+        sensor_type,
+        coordinator,
+        profile_id,
+        crop_name,
+        device_id,
+        unit=None,
+    ):
         configuration = {SENSOR_NAME: sensor_type}
         if unit is not None:
             configuration["sensor_unit"] = unit
         super().__init__(name, unique_id, sensor_type, configuration, coordinator)
         self._agriculture_coordinator = coordinator
-        split_unique_id = unique_id.split("-")
+        self._profile_id = profile_id
+        self._attr_config_subentry_id = profile_id
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,
-            identifiers={(DOMAIN, f"{split_unique_id[0]}-{split_unique_id[1]}-agriculture")},
+            identifiers={(DOMAIN, device_id)},
             manufacturer="OpenCWA with 高雄農來訊",
-            name="OpenCWA 農業氣象補充",
+            name=f"OpenCWA 農業氣象補充 - {crop_name}",
         )
+
+    def _profile_data(self):
+        data = self._agriculture_coordinator.data or {}
+        return data.get(self._profile_id) or {}
 
     @property
     def attribution(self):
@@ -347,7 +370,7 @@ class OpenCWBAgricultureSensor(AbstractOpenCWBSensor):
 
     @property
     def state(self):
-        data = self._agriculture_coordinator.data or {}
+        data = self._profile_data()
         value = data.get(self._sensor_type)
         if self._sensor_type == ATTR_AGRICULTURE and isinstance(value, dict):
             return value.get("status")
@@ -357,10 +380,10 @@ class OpenCWBAgricultureSensor(AbstractOpenCWBSensor):
 
     @property
     def available(self):
-        """Return availability only for confirmed agricultural data."""
+        """Return availability only for confirmed per-crop data."""
         if not self._agriculture_coordinator.last_update_success:
             return False
-        data = self._agriculture_coordinator.data or {}
+        data = self._profile_data()
         return agriculture_sensor_available(
             data.get(ATTR_AGRICULTURE),
             self._sensor_type,
@@ -370,12 +393,13 @@ class OpenCWBAgricultureSensor(AbstractOpenCWBSensor):
 
     @property
     def extra_state_attributes(self):
-        data = self._agriculture_coordinator.data or {}
+        data = self._profile_data()
         value = data.get(self._sensor_type)
         attrs = {
             ATTR_ATTRIBUTION: "Agricultural guidance provided by 高雄農來訊",
             "agricultural_source": "高雄農來訊",
             "official_cwa_alert": False,
+            "crop_profile_id": self._profile_id,
         }
         if isinstance(value, dict):
             attrs.update(value)
