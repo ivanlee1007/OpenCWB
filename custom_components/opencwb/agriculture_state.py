@@ -31,7 +31,7 @@ def agriculture_binary_available(
         return False
     status = snapshot.get("status")
     if state_key == "agriculture_supported":
-        return status in CONFIRMED_AGRICULTURE_STATUSES or status == "unsupported"
+        return type(snapshot.get("supported")) is bool
     return status in CONFIRMED_AGRICULTURE_STATUSES
 
 

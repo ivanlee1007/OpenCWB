@@ -539,10 +539,23 @@ def test_supported_binary_distinguishes_unsupported_from_unknown():
         "provider_available": True,
         "stale": False,
         "status": "unsupported",
+        "supported": False,
     }
     unknown = {"provider_available": True, "stale": False, "status": "unknown"}
     assert agriculture_binary_available(unsupported, "agriculture_supported") is True
     assert agriculture_binary_available(unknown, "agriculture_supported") is False
+
+
+def test_supported_binary_remains_available_when_supported_crop_has_no_local_rows():
+    no_data = {
+        "provider_available": True,
+        "stale": False,
+        "status": "no_data",
+        "supported": True,
+    }
+    assert agriculture_binary_available(no_data, "agriculture_supported") is True
+    assert agriculture_binary_available(no_data, "agriculture_warning") is False
+    assert agriculture_binary_available(no_data, "agriculture_advisory") is False
 
 
 def test_irrigation_sensor_requires_available_value():
