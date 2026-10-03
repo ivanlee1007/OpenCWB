@@ -1,13 +1,12 @@
 """Weather data coordinator for the OpenCWB (OCWB) service."""
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any
 
-import async_timeout
 import requests
-from .core.commons.exceptions import APIRequestError, UnauthorizedError
+from .core.commons.exceptions import APIRequestError, ParseAPIResponseError, UnauthorizedError
 
 from homeassistant.components.weather import (
     ATTR_CONDITION_CLEAR_NIGHT,
@@ -85,6 +84,7 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._longitude = longitude
         self.forecast_mode = forecast_mode
         self._forecast_limit: int | None = None
+        self.last_successful_update: datetime | None = None
 
         if forecast_mode == FORECAST_MODE_DAILY:
             self._forecast_limit = 15
@@ -102,8 +102,10 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             weather_response = await self._get_ocwb_weather()
             data = self._convert_weather_response(weather_response)
-        except (APIRequestError, UnauthorizedError) as error:
-            raise UpdateFailed(error) from error
+        except (APIRequestError, UnauthorizedError, ParseAPIResponseError) as error:
+            # Exception bodies from upstream can contain the API key.
+            raise UpdateFailed(f"CWA weather update failed ({type(error).__name__})") from None
+        self.last_successful_update = datetime.now(timezone.utc)
         return data
 
     async def _get_ocwb_weather(self):
@@ -220,7 +222,7 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             observation_current = self._fetch_observation_fallback_current()
         except Exception as exc:
-            _LOGGER.warning("OpenCWB observation fallback failed: %s", exc)
+            _LOGGER.warning("OpenCWB observation fallback failed (%s)", type(exc).__name__)
             observation_current = None
         return LegacyWeather(weather.weather, forecast.forecast.weathers, observation_current)
 

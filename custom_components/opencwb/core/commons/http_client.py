@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import json
+import time
 import requests
 
 from . import exceptions
 from .enums import ImageTypeEnum
+
+WEATHER_JSON_READ_TIMEOUT_SECS = 12
 
 
 class HttpRequestBuilder:
@@ -149,21 +152,29 @@ class HttpClient:
             .with_query_params(params if params is not None else dict())\
             .with_headers(headers if headers is not None else dict())
         url, params, headers, proxies = builder.build()
-        try:
-            resp = requests.get(url, params=params, headers=headers, proxies=proxies,
-                                timeout=self.config['connection']['timeout_secs'],
-                                verify=self.config['connection']['verify_ssl_certs'])
-        except requests.exceptions.SSLError as e:
-            raise exceptions.InvalidSSLCertificateError(str(e))
-        except requests.exceptions.ConnectionError as e:
-            raise exceptions.InvalidSSLCertificateError(str(e))
-        except requests.exceptions.Timeout:
-            raise exceptions.TimeoutError('API call timeouted')
-        HttpClient.check_status_code(resp.status_code, resp.text)
-        try:
-            return resp.status_code, resp.json()
-        except:
-            raise exceptions.ParseAPIResponseError('Impossible to parse API response data')
+        for attempt in range(2):
+            try:
+                resp = requests.get(
+                    url, params=params, headers=headers, proxies=proxies,
+                    timeout=(self.config['connection']['timeout_secs'], WEATHER_JSON_READ_TIMEOUT_SECS),
+                    verify=self.config['connection']['verify_ssl_certs'],
+                )
+            except requests.exceptions.SSLError:
+                raise exceptions.InvalidSSLCertificateError('CWA TLS verification failed') from None
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                if attempt == 0:
+                    time.sleep(0.5)
+                    continue
+                raise exceptions.TimeoutError('CWA request failed after retry') from None
+            if resp.status_code in (429, 500, 502, 503, 504) and attempt == 0:
+                time.sleep(0.5)
+                continue
+            # Do not include response bodies: CWA errors may echo Authorization.
+            HttpClient.check_status_code(resp.status_code, 'CWA request failed')
+            try:
+                return resp.status_code, resp.json()
+            except ValueError:
+                raise exceptions.ParseAPIResponseError('Impossible to parse API response data') from None
 
     def get_png(self, path, params=None, headers=None):
         builder = HttpRequestBuilder(self.root_uri, self.api_key, self.config, has_subdomains=self.admits_subdomains)\

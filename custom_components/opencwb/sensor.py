@@ -35,6 +35,7 @@ from .const import (
     WEATHER_SENSOR_TYPES,
 )
 from .weather_update_coordinator import WeatherUpdateCoordinator
+from .weather import OpenCWBWeatherFreshness
 from .core.weatherapi12.notification_builder import (
     build_tropical_cyclone_notification,
     build_typhoon_warning_notification,
@@ -53,7 +54,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     weather_sensor_types = WEATHER_SENSOR_TYPES
     forecast_sensor_types = FORECAST_SENSOR_TYPES
 
-    entities = []
+    entities = [
+        OpenCWBWeatherFreshness(
+            f"{name} {location_name} Weather Freshness",
+            f"{config_entry.unique_id}-weather-freshness-{location_name}",
+            weather_coordinator,
+        )
+    ]
     for sensor_type in MONITORED_CONDITIONS:
         unique_id = f"{config_entry.unique_id}-{sensor_type}-{location_name}"
         entities.append(

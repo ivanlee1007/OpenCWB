@@ -2,6 +2,7 @@
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.weather import Forecast, WeatherEntityFeature, SingleCoordinatorWeatherEntity
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import UnitOfLength, UnitOfPressure, UnitOfSpeed, UnitOfTemperature
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo
@@ -59,6 +60,42 @@ async def async_setup_entry(
     async_add_entities([ocwb_weather], False)
 
 
+class OpenCWBWeatherFreshness(SensorEntity):
+    """Diagnostic that remains readable when the weather entity is unavailable.
+
+    HA drops extra_state_attributes on unavailable entities; this independent
+    diagnostic exposes the time of the last successful weather snapshot.
+    """
+
+    _attr_should_poll = False
+    _attr_attribution = ATTRIBUTION
+
+    def __init__(self, name, unique_id, coordinator):
+        self._attr_name = name
+        self._attr_unique_id = unique_id
+        self._coordinator = coordinator
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self) -> str:
+        if self._coordinator.last_successful_update is None:
+            return "unknown"
+        return "fresh" if self._coordinator.last_update_success else "stale"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        last = self._coordinator.last_successful_update
+        return {"last_successful_update": last.isoformat() if last else None}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            self._coordinator.async_add_listener(self.async_write_ha_state)
+        )
+
+
 class OpenCWBWeather(SingleCoordinatorWeatherEntity[WeatherUpdateCoordinator]):
     """Implementation of an OpenCWB weather entity."""
 
@@ -111,7 +148,7 @@ class OpenCWBWeather(SingleCoordinatorWeatherEntity[WeatherUpdateCoordinator]):
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
+        """Return False rather than present expired readings as current."""
         return self._weather_coordinator.last_update_success
 
     async def async_added_to_hass(self) -> None:
@@ -199,10 +236,14 @@ class OpenCWBWeather(SingleCoordinatorWeatherEntity[WeatherUpdateCoordinator]):
 
     @callback
     def _async_forecast_daily(self) -> list[Forecast] | None:
-        """Return the daily forecast in native units."""
+        """Return daily forecast only when its source is current."""
+        if not self.available:
+            return None
         return self._weather_coordinator.data.get(ATTR_API_FORECAST_DAILY)
 
     @callback
     def _async_forecast_hourly(self) -> list[Forecast] | None:
-        """Return the hourly forecast in native units."""
+        """Return hourly forecast only when its source is current."""
+        if not self.available:
+            return None
         return self._weather_coordinator.data.get(ATTR_API_FORECAST_HOURLY)
