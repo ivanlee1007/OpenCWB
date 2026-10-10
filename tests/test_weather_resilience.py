@@ -78,6 +78,58 @@ def _client(components):
     return components.client.HttpClient("dummy-key", deepcopy(components.config.DEFAULT_CONFIG), "opendata.cwa.gov.tw", False)
 
 
+def test_cwa_request_has_one_authorization_and_one_encoded_location(components, monkeypatch):
+    """Prepare the actual wire URL: no OWM keys, duplicate query or double encoding."""
+    from urllib.parse import parse_qs, urlsplit
+    client = _client(components)
+    get = Mock(return_value=SimpleNamespace(status_code=200, json=lambda: {}))
+    monkeypatch.setattr(components.client.requests, "get", get)
+    client.get_json("F-D0047-075", {"locationName": "大安區"})
+    call = get.call_args
+    prepared = requests.Request("GET", call.args[0], params=call.kwargs["params"]).prepare()
+    assert parse_qs(urlsplit(prepared.url).query) == {
+        "Authorization": ["dummy-key"], "format": ["JSON"], "LocationName": ["大安區"],
+    }
+    assert "?" not in call.args[0]
+
+
+def test_manager_uses_only_supported_onecall_query(components, monkeypatch):
+    from copy import deepcopy
+    manager_module = importlib.import_module("custom_components.opencwb.core.weatherapi12.weather_manager")
+    manager = manager_module.WeatherManager("dummy-key", deepcopy(components.config.DEFAULT_CONFIG))
+    get = Mock(return_value=(200, {}))
+    monkeypatch.setattr(manager.http_client, "get_json", get)
+    monkeypatch.setattr(manager_module.one_call.OneCall, "from_dict", lambda _: "parsed")
+    assert manager.one_call(24.38, 120.61, "台中市大安區", "daily") == "parsed"
+    get.assert_called_once_with("F-D0047-091", params={"LocationName": "臺中市"})
+
+
+def test_district_forecast_uses_raw_location_and_local_limit(components, monkeypatch):
+    from copy import deepcopy
+    manager_module = importlib.import_module("custom_components.opencwb.core.weatherapi12.weather_manager")
+    manager = manager_module.WeatherManager("dummy-key", deepcopy(components.config.DEFAULT_CONFIG))
+    get = Mock(return_value=(200, {}))
+    monkeypatch.setattr(manager.http_client, "get_json", get)
+    forecast = SimpleNamespace(weathers=["first", "second", "third"])
+    monkeypatch.setattr(manager_module.forecast.Forecast, "from_dict", lambda _: forecast)
+    monkeypatch.setattr(manager_module.forecaster, "Forecaster", lambda value: value)
+    result = manager.forecast_at_place("台中市大安區", "daily", limit=2)
+    get.assert_called_once_with("F-D0047-075", params={"LocationName": "大安區"})
+    assert result.weathers == ["first", "second"]
+
+
+def test_observation_fallback_selects_nearest_station_locally(components, monkeypatch):
+    stations = [{"GeoInfo": {"Coordinates": [{"CoordinateName": "WGS84", "StationLatitude": "24.38", "StationLongitude": "120.61"}]},
+                 "WeatherElement": {"AirPressure": "1013", "WindDirection": "90", "WindSpeed": "3"}}]
+    get = Mock(return_value=SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"records": {"Station": stations}}))
+    monkeypatch.setattr(components.coordinator.requests, "Session", lambda: SimpleNamespace(get=get, trust_env=True))
+    client = SimpleNamespace(API_key="dummy-key", http_client=_client(components))
+    coordinator = components.coordinator.WeatherUpdateCoordinator(client, "台中市大安區", 24.38, 120.61, "daily", SimpleNamespace())
+    current = coordinator._fetch_observation_fallback_current()
+    assert current.pressure["press"] == 1013
+    assert get.call_args.kwargs["params"] == {"Authorization": "dummy-key", "format": "JSON"}
+
+
 def test_shared_config_preserves_warning_timeout(components, monkeypatch):
     """WarningClient must still receive the baseline timeout from shared config."""
     from copy import deepcopy

@@ -163,8 +163,6 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             params={
                 "Authorization": self._ocwb_client.API_key,
                 "format": "JSON",
-                "lon": self._longitude,
-                "lat": self._latitude,
             },
             timeout=timeout,
             verify=verify,

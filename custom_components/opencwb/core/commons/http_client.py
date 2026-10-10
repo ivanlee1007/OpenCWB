@@ -80,40 +80,22 @@ class HttpRequestBuilder:
         return self
 
     def with_api_key(self):
-        self.params['APPID'] = self.api_key
+        self.params['Authorization'] = self.api_key
         return self
 
     def with_language(self):
-        self.params['lang'] = self.config['language']
+        # CWA datasets do not accept the inherited OpenWeatherMap `lang` key.
         return self
 
     def build(self):
-        locationId = self.params.get("locationId", None)
-        locationName = self.params.get("locationName", None)
-        assert isinstance(locationName, str)
-
-        if self.has_subdomains:
-            if locationId:
-                return self.URL_TEMPLATE_WITH_SUBDOMAINS_WITH_LOCATIONID.format(
-                    self.schema, self.subdomain, self.root, self.path,
-                        self.api_key, locationId, locationName, locationName), \
-                            self.params, self.headers, self.proxies
-            else:
-                return self.URL_TEMPLATE_WITH_SUBDOMAINS.format(
-                    self.schema, self.subdomain, self.root, self.path,
-                        self.api_key, locationName, locationName), \
-                            self.params, self.headers, self.proxies
-        else:
-            if locationId:
-                return self.URL_TEMPLATE_WITHOUT_SUBDOMAINS_WITH_LOCATIONID.format(
-                    self.schema, self.root, self.path,
-                        self.api_key, locationId, locationName, locationName), \
-                            self.params, self.headers, self.proxies
-            else:
-                return self.URL_TEMPLATE_WITHOUT_SUBDOMAINS.format(
-                    self.schema, self.root, self.path,
-                        self.api_key, locationName, locationName), \
-                            self.params, self.headers, self.proxies
+        # Keep query data out of the URL: requests must encode it exactly once.
+        # F-D0047 uses case-sensitive LocationName, unlike older CWA datasets.
+        params = {**self.params, 'Authorization': self.api_key, 'format': 'JSON'}
+        if self.path.startswith('F-D0047-') and 'locationName' in params:
+            params.setdefault('LocationName', params.pop('locationName'))
+        root = f'{self.subdomain}.{self.root}' if self.has_subdomains else self.root
+        url = f'{self.schema}://{root}/{self.path}'
+        return url, params, self.headers, self.proxies
 
     def __repr__(self):
         return "<%s.%s>" % (__name__, self.__class__.__name__)
