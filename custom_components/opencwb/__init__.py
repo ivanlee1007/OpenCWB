@@ -1,4 +1,4 @@
-"""The OpenCWB component."""
+"""The Uninus OpenCWA component."""
 import asyncio
 import logging
 from types import MappingProxyType
@@ -60,7 +60,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the OpenCWB component."""
+    """Set up the Uninus OpenCWA component."""
     hass.data.setdefault(DOMAIN, {})
     return True
 
@@ -70,7 +70,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     if config_entry.version >= 2:
         return True
     if config_entry.version != 1:
-        _LOGGER.error("Unsupported OpenCWA config entry version %s", config_entry.version)
+        _LOGGER.error("Unsupported Uninus OpenCWA config entry version %s", config_entry.version)
         return False
 
     profile, recovered = legacy_crop_profile_with_recovery(
@@ -124,7 +124,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Set up OpenCWB as config entry."""
+    """Set up Uninus OpenCWA as config entry."""
     name = config_entry.data[CONF_NAME]
     api_key = config_entry.data[CONF_API_KEY]
     location_name = config_entry.data.get(CONF_LOCATION_NAME, None)
@@ -178,7 +178,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     agriculture_coordinator = None
     if enable_agriculture_advisories and crop_profiles:
         try:
-            # Keep the optional provider outside the core OpenCWA import path.
+            # Keep the optional provider outside the core Uninus OpenCWA import path.
             from .agriculture_update_coordinator import AgricultureUpdateCoordinator
 
             agriculture_coordinator = AgricultureUpdateCoordinator(
@@ -195,7 +195,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             agriculture_coordinator = None
             _LOGGER.error(
                 "Optional agricultural provider could not be initialized (%s); "
-                "OpenCWA weather will continue without it",
+                "Uninus OpenCWA weather will continue without it",
                 type(error).__name__,
             )
 
@@ -224,7 +224,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             hass,
             config_entry,
             _async_refresh_optional_agriculture(agriculture_coordinator),
-            "OpenCWA optional agriculture initial refresh",
+            "Uninus OpenCWA optional agriculture initial refresh",
         )
 
     update_listener = config_entry.add_update_listener(async_update_options)
@@ -242,13 +242,13 @@ def _create_optional_background_task(hass, config_entry, target, name) -> None:
 
 
 async def _async_refresh_optional_agriculture(coordinator) -> None:
-    """Refresh agriculture only after core OpenCWA platforms are loaded."""
+    """Refresh agriculture only after core Uninus OpenCWA platforms are loaded."""
     try:
         await coordinator.async_config_entry_first_refresh()
     except Exception as error:
         _LOGGER.error(
             "Optional agricultural provider background refresh failed (%s); "
-            "OpenCWA weather remains available",
+            "Uninus OpenCWA weather remains available",
             type(error).__name__,
         )
 
@@ -357,7 +357,7 @@ def _migrate_legacy_agriculture_registry_entries(
                 remove_config_entry_id=config_entry.entry_id,
                 remove_config_subentry_id=None,
                 new_identifiers={new_identifier},
-                name=f"OpenCWA 農業氣象補充 - {crop_name}",
+                name=f"Uninus OpenCWA 農業氣象補充 - {crop_name}",
             )
             device_updated = True
     except ValueError as error:
@@ -513,7 +513,7 @@ def _remove_disabled_warning_entities(
         unique_id = entry.unique_id or ""
         if any(suffix in unique_id for suffix in disabled_suffixes):
             _LOGGER.debug(
-                "Removing disabled OpenCWB warning entity %s (%s)",
+                "Removing disabled Uninus OpenCWA warning entity %s (%s)",
                 entry.entity_id,
                 unique_id,
             )

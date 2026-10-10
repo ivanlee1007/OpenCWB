@@ -1,4 +1,4 @@
-"""Warning data coordinator for OpenCWB / CWA warning datasets."""
+"""Warning data coordinator for Uninus OpenCWA / CWA warning datasets."""
 from __future__ import annotations
 
 from datetime import timedelta
@@ -71,7 +71,7 @@ class WarningUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if city_name and city_name not in candidates:
                 candidates.append(city_name)
         except Exception as exc:  # pragma: no cover - defensive around legacy mapping
-            _LOGGER.debug("OpenCWB warning location mapping failed: %s", exc)
+            _LOGGER.debug("Uninus OpenCWA warning location mapping failed: %s", exc)
         return [candidate for candidate in candidates if candidate]
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -135,7 +135,7 @@ class WarningUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             return await self.hass.async_add_executor_job(func, *args)
         except Exception as exc:  # keep optional warning feeds non-fatal
-            _LOGGER.warning("OpenCWB %s fetch failed: %s", label, exc)
+            _LOGGER.warning("Uninus OpenCWA %s fetch failed: %s", label, exc)
             value = dict(fallback)
             value["error"] = str(exc)
             return value

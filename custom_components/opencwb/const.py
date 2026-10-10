@@ -1,4 +1,4 @@
-"""Consts for the OpenCWB."""
+"""Consts for the Uninus OpenCWA."""
 # pylint: disable=line too long
 from homeassistant.components.weather import (
     ATTR_CONDITION_CLOUDY,
@@ -37,10 +37,10 @@ from homeassistant.const import (
 )
 
 DOMAIN = "opencwb"
-DEFAULT_NAME = "OpenCWA"
+DEFAULT_NAME = "Uninus OpenCWA"
 DEFAULT_LANGUAGE = "zh_tw"
 ATTRIBUTION = "Data provided by Opendata CWA"
-MANUFACTURER = "OpenCWA (\u4e2d\u592e\u6c23\u8c61\u5c40\u6c23\u8c61\u8cc7\u6599\u958b\u653e\u5e73\u81fa)"
+MANUFACTURER = "Uninus OpenCWA"
 CONF_LANGUAGE = "language"
 CONF_LOCATION_NAME = "location_name"
 CONF_ENABLE_TYPHOON_WARNING = "enable_typhoon_warning"

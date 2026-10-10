@@ -28,7 +28,7 @@ from .agriculture_state import agriculture_binary_available
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
-    """Set up OpenCWB binary warning sensors."""
+    """Set up Uninus OpenCWA binary warning sensors."""
     domain_data = hass.data[DOMAIN][config_entry.entry_id]
     warning_coordinator = domain_data.get(ENTRY_WARNING_COORDINATOR)
     name = domain_data[ENTRY_NAME]
@@ -143,11 +143,11 @@ class OpenCWBWarningBinarySensor(BinarySensorEntity):
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,
             identifiers={(DOMAIN, resolved_device_id)},
-            manufacturer="OpenCWA with 高雄農來訊" if agriculture else MANUFACTURER,
+            manufacturer="Uninus OpenCWA with 高雄農來訊" if agriculture else MANUFACTURER,
             name=(
-                f"OpenCWA 農業氣象補充 - {crop_name}"
+                f"Uninus OpenCWA 農業氣象補充 - {crop_name}"
                 if agriculture and crop_name
-                else "OpenCWA 農業氣象補充"
+                else "Uninus OpenCWA 農業氣象補充"
                 if agriculture
                 else DEFAULT_NAME
             ),

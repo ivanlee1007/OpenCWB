@@ -1,22 +1,43 @@
+# Uninus OpenCWA
+
 <a href="https://www.buymeacoffee.com/tsunglung" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="30" width="120"></a>
 
-Home assistant support for [Opendata CWA](https://opendata.cwa.gov.tw/index) (prvious Opendata CWB). [The readme in Traditional Chinese](https://github.com/tsunglung/OpenCWB/blob/master/README_zh-tw.md).
+Home Assistant integration for Taiwan’s [Central Weather Administration open data](https://opendata.cwa.gov.tw/index): weather, forecasts, official warnings, and optional agricultural guidance. [The readme in Traditional Chinese](https://github.com/ivanlee1007/Uninus-OpenCWA/blob/master/README_zh-tw.md).
 
 
 This integration is based on [OpenWeatherMap](https://openweathermap.org) ([@csparpa](https://pypi.org/user/csparpa), [pyowm](https://github.com/csparpa/pyowm)) to develop.
 
 ## Install
 
-You can install component with [HACS](https://hacs.xyz/) custom repo: HACS > Integrations > 3 dots (upper top corner) > Custom repositories > URL: `tsunglung/OpenCWB` > Category: Integration
+You can install component with [HACS](https://hacs.xyz/) custom repo: HACS > Integrations > 3 dots (upper top corner) > Custom repositories > URL: `https://github.com/ivanlee1007/Uninus-OpenCWA` > Category: Integration
 
 Or manually copy `opencwb` folder to `custom_components` folder in your config folder.
 
 Then restart HA.
 
+## Upgrade and naming compatibility
+
+The project and integration display name are **Uninus OpenCWA**. The repository is `ivanlee1007/Uninus-OpenCWA` (formerly `ivanlee1007/OpenCWB`). Update your HACS custom repository URL to the new address.
+
+The internal integration domain and installation folder remain **`opencwb`** to preserve existing config entries, crop subentries, device/entity unique IDs, and automations. Do not rename the folder to `opencwa` or install a second copy. Existing user-defined entry/entity names are retained; the new name is used for integration branding and newly created entries/devices. Entity IDs in examples are illustrative: use the IDs from your own installation.
+
+This fork builds on Tsunglung Yang’s original OpenCWB integration and pyowm. Original authorship, license, and donation links are retained as upstream attribution.
+
 ## Latest changes
 
+### v1.5.4
+- Rename the project, Home Assistant/HACS display name, configuration screens, and device branding to **Uninus OpenCWA**.
+- Update installation, documentation, and issue links to `ivanlee1007/Uninus-OpenCWA`; preserve the `opencwb` domain and existing identities.
+- Synchronize integration and core versions to 1.5.4 and add a branding/compatibility regression test.
+
+### v1.5.3
+- Send each CWA dataset query once with correctly encoded parameters; avoid duplicate Authorization and format values.
+
+### v1.5.1–v1.5.2
+- Bound transient CWA weather requests and retries, expose weather freshness, and preserve snapshots without presenting stale weather as fresh.
+
 ### v1.5.0
-- Model one OpenCWA config entry as a farm/location with any number of native Home Assistant crop subentries.
+- Model one Uninus OpenCWA config entry as a farm/location with any number of native Home Assistant crop subentries.
 - Add, edit, and remove crop records independently. Each crop keeps its own growth stage, planting date, area, warnings, notification, and irrigation-reference entities.
 - Fetch city crop weather, catalog, and warning rules once per farm update, then build isolated per-crop snapshots. Stable subentry IDs prevent entity churn when crops are renamed or reordered.
 - Existing 1.4.x single-crop settings migrate losslessly to the first crop subentry.
@@ -100,23 +121,23 @@ Then restart HA.
 
 ## Optional 高雄農來訊 agricultural guidance
 
-Enable **KCG agricultural guidance** from **Settings > Devices & services > OpenCWA > Configure**. When disabled, OpenCWA does not construct the provider client/coordinator or make agricultural HTTP requests.
+Enable **KCG agricultural guidance** from **Settings > Devices & services > Uninus OpenCWA > Configure**. When disabled, Uninus OpenCWA does not construct the provider client/coordinator or make agricultural HTTP requests.
 
-The main OpenCWA entry represents the farm/location and stores the shared enable switch and password-masked provider token. Use the native **Add crop** action on the OpenCWA integration page to add as many crop records, planting batches, or fields as needed. Every crop record independently stores its searchable crop name, growth stage, planting date, and cultivation area. Crop records can be edited or removed without changing other crop entities.
+The main Uninus OpenCWA entry represents the farm/location and stores the shared enable switch and password-masked provider token. Use the native **Add crop** action on the Uninus OpenCWA integration page to add as many crop records, planting batches, or fields as needed. Every crop record independently stores its searchable crop name, growth stage, planting date, and cultivation area. Crop records can be edited or removed without changing other crop entities.
 
 Each crop creates an independent agriculture device with warning, advisory, support, notification, ET0, Kc, ETc, and water-requirement entities. Entity identity uses the stable Home Assistant crop subentry ID rather than the editable crop name or list order.
 
 The token is only required for ET0, Kc, ETc, and water-requirement endpoints; crop warnings and support checks remain tokenless. City crop weather, catalog, and warning rules are downloaded once per farm update and then filtered locally for every configured crop. Provider or parser failure for one crop never stops CWA coordinators or replaces another crop's valid snapshot.
 
-If a legacy area value is invalid, OpenCWA creates a visible `⚠` crop record and retains the original value as recovery metadata; edit that crop once to repair it. In Options, leave the token field blank to keep the stored token, or check **Clear stored agricultural token** to remove it.
+If a legacy area value is invalid, Uninus OpenCWA creates a visible `⚠` crop record and retains the original value as recovery metadata; edit that crop once to repair it. In Options, leave the token field blank to keep the stored token, or check **Clear stored agricultural token** to remove it.
 
-Agricultural guidance is attributed to 高雄農來訊; weather remains attributed to CWA. OpenCWA-derived guidance is not an official CWA crop-loss forecast, and no data/unsupported/stale/unavailable never means safe.
+Agricultural guidance is attributed to 高雄農來訊; weather remains attributed to CWA. Uninus OpenCWA-derived guidance is not an official CWA crop-loss forecast, and no data/unsupported/stale/unavailable never means safe.
 
 ## Optional CWA warning entities
 
-OpenCWA can optionally create dedicated CWA warning entities. They are disabled by default to avoid extra API calls for existing users.
+Uninus OpenCWA can optionally create dedicated CWA warning entities. They are disabled by default to avoid extra API calls for existing users.
 
-Enable them from **Settings > Devices & services > OpenCWA > Configure**:
+Enable them from **Settings > Devices & services > Uninus OpenCWA > Configure**:
 
 - **Enable official typhoon warning** (`enable_typhoon_warning`): uses CWA `W-C0034-001` CAP data to identify an official Taiwan typhoon warning. Tropical-cyclone track data alone is not treated as an official warning.
 - **Enable tropical cyclone track** (`enable_tropical_cyclone_track`): uses CWA `W-C0034-005` for active tropical cyclone track/fix data.
@@ -165,7 +186,7 @@ action:
 **Please use the config flow of Home Assistant**
 
 
-1. With GUI. Configuration > Integration > Add Integration > OpneCWA
+1. With GUI. Configuration > Integration > Add Integration > Uninus OpenCWA
    1. If the integration didn't show up in the list please REFRESH the page
    2. If the integration is still not in the list, you need to clear the browser cache.
 2. Enter API key.
@@ -180,4 +201,4 @@ Buy Me A Coffee
 
 |  LINE Pay | LINE Bank | JKao Pay |
 | :------------: | :------------: | :------------: |
-| <img src="https://github.com/tsunglung/OpenCWB/blob/master/linepay.jpg" alt="Line Pay" height="200" width="200">  | <img src="https://github.com/tsunglung/OpenCWB/blob/master/linebank.jpg" alt="Line Bank" height="200" width="200">  | <img src="https://github.com/tsunglung/OpenCWB/blob/master/jkopay.jpg" alt="JKo Pay" height="200" width="200">  |
+| <img src="linepay.jpg" alt="Line Pay" height="200" width="200">  | <img src="linebank.jpg" alt="Line Bank" height="200" width="200">  | <img src="jkopay.jpg" alt="JKo Pay" height="200" width="200">  |

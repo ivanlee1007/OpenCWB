@@ -1,1 +1,1 @@
-"""Optional agricultural data providers for OpenCWA."""
+"""Optional agricultural data providers for Uninus OpenCWA."""

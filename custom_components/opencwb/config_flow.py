@@ -1,4 +1,4 @@
-"""Config flow for OpenCWB."""
+"""Config flow for Uninus OpenCWA."""
 import logging
 import urllib.parse
 import uuid
@@ -61,7 +61,7 @@ def _crop_name_selector():
 
 
 class OpenCWBConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for OpenCWB."""
+    """Config flow for Uninus OpenCWA."""
 
     VERSION = CONFIG_FLOW_VERSION
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL

@@ -1,4 +1,4 @@
-"""Optional multi-crop agricultural advisory coordinator for OpenCWA."""
+"""Optional multi-crop agricultural advisory coordinator for Uninus OpenCWA."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -222,7 +222,7 @@ class AgricultureUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception as error:  # advisory values are independently optional
             error_code = getattr(error, "code", type(error).__name__)
             _LOGGER.warning(
-                "OpenCWA optional irrigation reference failed (%s)", error_code
+                "Uninus OpenCWA optional irrigation reference failed (%s)", error_code
             )
             return {
                 "available": False,
@@ -252,7 +252,7 @@ class AgricultureUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception as error:  # optional provider is deliberately non-fatal
             error_code = getattr(error, "code", type(error).__name__)
             _LOGGER.warning(
-                "OpenCWA optional agricultural update failed (%s)", error_code
+                "Uninus OpenCWA optional agricultural update failed (%s)", error_code
             )
             return {
                 profile_id: self._fallback(error, previous.get(profile_id))
@@ -270,7 +270,7 @@ class AgricultureUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except Exception as error:
                 error_code = getattr(error, "code", type(error).__name__)
                 _LOGGER.warning(
-                    "OpenCWA crop profile update failed (%s)", error_code
+                    "Uninus OpenCWA crop profile update failed (%s)", error_code
                 )
                 results[profile_id] = self._fallback(
                     error, previous.get(profile_id)

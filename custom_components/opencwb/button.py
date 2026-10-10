@@ -1,4 +1,4 @@
-"""Update button for OpenCWB."""
+"""Update button for Uninus OpenCWA."""
 from __future__ import annotations
 
 import logging
@@ -30,7 +30,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the OpenCWB update button for one location."""
+    """Set up the Uninus OpenCWA update button for one location."""
     domain_data = hass.data[DOMAIN][config_entry.entry_id]
     name = domain_data[ENTRY_NAME]
     weather_coordinator: WeatherUpdateCoordinator = domain_data[ENTRY_WEATHER_COORDINATOR]
@@ -101,7 +101,7 @@ class OCWBUpdateButton(ButtonEntity):
 
     async def async_press(self) -> None:
         """Handle button press: trigger immediate refresh and record result."""
-        _LOGGER.debug("OpenCWB update button pressed for %s", self._attr_name)
+        _LOGGER.debug("Uninus OpenCWA update button pressed for %s", self._attr_name)
 
         self._previous_update_time = self._last_update_time
         self._last_error = None
@@ -117,6 +117,6 @@ class OCWBUpdateButton(ButtonEntity):
         except Exception as ex:  # noqa: BLE001
             self._update_status = "失敗"
             self._last_error = str(ex)
-            _LOGGER.exception("OpenCWB update button failed")
+            _LOGGER.exception("Uninus OpenCWA update button failed")
 
         self.async_write_ha_state()
