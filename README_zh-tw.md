@@ -1,26 +1,47 @@
+# Uninus OpenCWA
+
 <a href="https://www.buymeacoffee.com/tsunglung" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="30" width="120"></a>
 
-中央氣象署-開放資料平臺 [Opendata CWA](https://opendata.cwb.gov.tw/index)(前身 中央氣象局) 支援 Home Assistant
+中央氣象署-開放資料平臺 [Opendata CWA](https://opendata.cwa.gov.tw/index)(前身 中央氣象局) 支援 Home Assistant
 
 
 這個整合是基於 [OpenWeatherMap](https://openweathermap.org) ([@csparpa](https://pypi.org/user/csparpa), [pyowm](https://github.com/csparpa/pyowm)) 所做的開發。
 
 # 安裝
 
-你可以用 [HACS](https://hacs.xyz/) 來安裝這個整合。 步驟如下 custom repo: HACS > Integrations > 3 dots (upper top corner) > Custom repositories > URL: `tsunglung/OpenCWB` > Category: Integration
+你可以用 [HACS](https://hacs.xyz/) 來安裝這個整合。 步驟如下 custom repo: HACS > Integrations > 3 dots (upper top corner) > Custom repositories > URL: `https://github.com/ivanlee1007/Uninus-OpenCWA` > Category: Integration
 
 或是手動複製 `opencwb` 資料夾到你的 config 資料夾的  `custom_components` 目錄下。
 
 然後重新啟動 Home Assistant.
 
-## 氣象資料逾時與新鮮度（尚未發布的修正）
+## 氣象資料逾時與新鮮度（v1.5.1–v1.5.2）
 - 氣象 JSON 請求採 5 秒連線／12 秒讀取期限，對暫時性連線／逾時、429 與部分 5xx 最多再試一次（間隔 0.5 秒）。認證失敗與資料格式錯誤不重試。
 - 若氣象更新仍失敗，原有快照留在記憶體供下次成功更新使用，但天氣實體維持 `unavailable`，不把舊值當新值。另有「Weather Freshness」感測器，即使天氣實體不可用仍顯示 `stale` 與 `last_successful_update`（UTC），成功則為 `fresh`。若首次設定時即讀取失敗，HA 會等待重新設定，尚不會建立感測器。Home Assistant 不會顯示 unavailable 天氣實體的自訂屬性，因此請查此獨立感測器。
 
+## 升級與名稱相容性
+
+專案與整合顯示名稱統一為 **Uninus OpenCWA**，GitHub repository 改為 `ivanlee1007/Uninus-OpenCWA`（原為 `ivanlee1007/OpenCWB`）。請將 HACS 自訂儲存庫網址更新為新網址。
+
+為保留既有設定、作物子項目、裝置／實體 unique ID 及自動化，內部 integration domain 與安裝資料夾仍為 **`opencwb`**。請勿將資料夾改為 `opencwa`，也不要重複安裝第二份整合。既有使用者自訂的 entry／entity 名稱不會被強制改寫；整合品牌與新建項目／裝置使用新名稱。文件中的 entity ID 僅為範例，請以自己安裝環境的實際 ID 為準。
+
+本分支基於 Tsunglung Yang 原始 OpenCWB 整合及 pyowm；保留原作者、授權與原作者贊助連結作為來源註記。
+
 ## 最新更新
 
+### v1.5.4
+- 專案、Home Assistant／HACS 顯示名稱、設定畫面及裝置品牌統一為 **Uninus OpenCWA**。
+- 安裝、文件及問題回報連結更新至 `ivanlee1007/Uninus-OpenCWA`；保留 `opencwb` domain 與既有識別碼。
+- 整合與核心版本同步為 1.5.4，新增品牌及相容性回歸測試。
+
+### v1.5.3
+- CWA dataset 請求僅送出一次正確編碼的查詢參數，避免重複 Authorization 與 format。
+
+### v1.5.1–v1.5.2
+- 限制氣象請求期限與暫時性錯誤重試，新增資料新鮮度感測器；保留舊快照但不將舊天氣當新資料。
+
 ### v1.5.0
-- 一個 OpenCWA config entry 現在代表一個農場／地點，可透過 Home Assistant 原生作物子項目持續新增任意數量的作物、種植批次或田區。
+- 一個 Uninus OpenCWA config entry 現在代表一個農場／地點，可透過 Home Assistant 原生作物子項目持續新增任意數量的作物、種植批次或田區。
 - 每筆作物可獨立新增、編輯及刪除，並各自保存生育期、種植日期、面積、警戒、通知與灌溉參考 entities。
 - 每次農場更新只抓一次縣市作物資料、catalog 與 warning rules，再為每筆作物建立隔離 snapshot；穩定 subentry ID 避免改名或排序造成 entity ID 重建。
 - 既有 1.4.x 單一作物設定會無損遷移為第一筆作物子項目。
@@ -31,7 +52,7 @@
 
 ### v1.4.0
 - 新增完全選用的「高雄農來訊」全臺農業補充：作物警戒、生產注意、支援狀態、農業通知，以及有 TOKEN 時的 ET0／Kc／ETc／需水量參考。
-- 農業 client、coordinator 與 entities 與 CWA 核心資料隔離；預設關閉，未設定、逾時、認證失敗、格式異常或資料過期都不會阻止 OpenCWA 天氣、預報與官方警報運作。
+- 農業 client、coordinator 與 entities 與 CWA 核心資料隔離；預設關閉，未設定、逾時、認證失敗、格式異常或資料過期都不會阻止 Uninus OpenCWA 天氣、預報與官方警報運作。
 - 農業資訊明確標示來源，且不會冒充 CWA 官方警報；無資料也不會被顯示成「安全」。
 
 ### v1.3.43
@@ -105,9 +126,9 @@
 
 ## 選用：高雄農來訊農業補充
 
-可從 **設定 > 裝置與服務 > OpenCWA > 設定** 啟用「高雄農來訊農業補充」。此功能預設關閉；未啟用時不會建立 client、coordinator、農業 entities 或發出農來訊 HTTP 請求。
+可從 **設定 > 裝置與服務 > Uninus OpenCWA > 設定** 啟用「高雄農來訊農業補充」。此功能預設關閉；未啟用時不會建立 client、coordinator、農業 entities 或發出農來訊 HTTP 請求。
 
-主 OpenCWA entry 代表農場／地點，只保存共用的農業啟用開關與密碼遮罩 TOKEN。回到 OpenCWA 整合頁後，使用 Home Assistant 原生的 **新增作物** 動作，可依需求持續增加任意數量的作物、不同種植批次或田區。每筆作物可獨立設定：
+主 Uninus OpenCWA entry 代表農場／地點，只保存共用的農業啟用開關與密碼遮罩 TOKEN。回到 Uninus OpenCWA 整合頁後，使用 Home Assistant 原生的 **新增作物** 動作，可依需求持續增加任意數量的作物、不同種植批次或田區。每筆作物可獨立設定：
 
 - 作物名稱：127 種官方名稱的可搜尋選單，另保留自訂值。
 - 生育期。
@@ -119,15 +140,15 @@
 每次更新只查詢一次設定地點所屬縣市的作物氣象、catalog 與 warning rules，再於本地依鄉鎮、作物及生育期分別過濾。TOKEN-gated 灌溉參考才依各作物、種植日期與面積個別查詢。單一作物 parser／灌溉失敗不會覆蓋其他作物資料，農來訊整體失敗也不會阻止 CWA entities 更新。
 
 既有 1.4.x 的單一 `crop_name`、`growth_stage`、`planting_date`、`area_hectares` 會在升級時自動遷移成第一筆作物，不需重新輸入。
-若舊面積值無法解析，OpenCWA 會建立可見的 `⚠` 作物紀錄並保留原值作為修復資訊；編輯該作物一次即可修正。Options 中 TOKEN 欄留白會保留既有 TOKEN，勾選「清除已儲存的農業 TOKEN」才會刪除。
+若舊面積值無法解析，Uninus OpenCWA 會建立可見的 `⚠` 作物紀錄並保留原值作為修復資訊；編輯該作物一次即可修正。Options 中 TOKEN 欄留白會保留既有 TOKEN，勾選「清除已儲存的農業 TOKEN」才會刪除。
 
-> 農業資料來自高雄農來訊，天氣資料來自中央氣象署；OpenCWA 整理或推導的內容不是 CWA 官方農損預測。無資料、無 timestamp、不支援作物與服務失敗都不等同安全。
+> 農業資料來自高雄農來訊，天氣資料來自中央氣象署；Uninus OpenCWA 整理或推導的內容不是 CWA 官方農損預測。無資料、無 timestamp、不支援作物與服務失敗都不等同安全。
 
 ## 選用：CWA 官方警報與災害資訊
 
-OpenCWA 可以選擇性建立 CWA 官方警報與災害資訊實體。為了避免既有使用者升級後多出額外 API 呼叫，這些功能預設為關閉。
+Uninus OpenCWA 可以選擇性建立 CWA 官方警報與災害資訊實體。為了避免既有使用者升級後多出額外 API 呼叫，這些功能預設為關閉。
 
-可從 **設定 > 裝置與服務 > OpenCWA > 設定** 啟用：
+可從 **設定 > 裝置與服務 > Uninus OpenCWA > 設定** 啟用：
 
 - **啟用官方颱風警報** (`enable_typhoon_warning`)：使用 CWA `W-C0034-001` CAP 資料判斷目前是否有官方颱風警報。熱帶氣旋路徑資料本身不會被當成官方警報。
 - **啟用熱帶氣旋路徑** (`enable_tropical_cyclone_track`)：使用 CWA `W-C0034-005` 顯示目前活動中熱帶氣旋與路徑/定位資訊。
@@ -277,7 +298,7 @@ OpenCWA 可以選擇性建立 CWA 官方警報與災害資訊實體。為了避�
 通知 sensor 的 automation 範例：
 
 ```yaml
-alias: OpenCWA 通知 sensor 推播
+alias: Uninus OpenCWA 通知 sensor 推播
 trigger:
   - platform: state
     entity_id:
@@ -320,9 +341,9 @@ action:
 **請使用 Home Assistant 整合設定**
 
 
-1. 從 GUI. 設定 > 整合 > 新增 整合 > OpneCWA
-   1. 如果 OpenCWA 沒有出現在清單裡，請 重新整理 (REFRESH) 網頁。
-   2. 如果 OpenCWA 還是沒有出現在清單裡，請清除瀏覽器的快取 (Cache)。
+1. 從 GUI. 設定 > 整合 > 新增 整合 > Uninus OpenCWA
+   1. 如果 Uninus OpenCWA 沒有出現在清單裡，請 重新整理 (REFRESH) 網頁。
+   2. 如果 Uninus OpenCWA 還是沒有出現在清單裡，請清除瀏覽器的快取 (Cache)。
 2. 輸入 API 授權碼.
 3. 輸入台灣的鄉鎮市區名稱。請參考 [文件](https://opendata.cwa.gov.tw/opendatadoc/Opendata_City.pdf)。
    1. 一般可直接填區級 / 鄉鎮市名稱，例如：`新店區`、`板橋區`、`三民區`。
@@ -339,4 +360,4 @@ action:
 
 |  LINE Pay | LINE Bank | JKao Pay |
 | :------------: | :------------: | :------------: |
-| <img src="https://github.com/tsunglung/OpenCWB/blob/master/linepay.jpg" alt="Line Pay" height="200" width="200">  | <img src="https://github.com/tsunglung/OpenCWB/blob/master/linebank.jpg" alt="Line Bank" height="200" width="200">  | <img src="https://github.com/tsunglung/OpenCWB/blob/master/jkopay.jpg" alt="JKo Pay" height="200" width="200">  |
+| <img src="linepay.jpg" alt="Line Pay" height="200" width="200">  | <img src="linebank.jpg" alt="Line Bank" height="200" width="200">  | <img src="jkopay.jpg" alt="JKo Pay" height="200" width="200">  |

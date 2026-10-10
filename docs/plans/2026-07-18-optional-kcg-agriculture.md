@@ -2,9 +2,9 @@
 
 > **For Hermes:** Implement task-by-task with strict RED→GREEN→REFACTOR cycles.
 
-**Goal:** Extend OpenCWA with optional nationwide agricultural advisories and irrigation-reference data from 高雄農來訊 without making existing weather, forecast, warning, or typhoon behavior depend on that provider.
+**Goal:** Extend Uninus OpenCWA with optional nationwide agricultural advisories and irrigation-reference data from 高雄農來訊 without making existing weather, forecast, warning, or typhoon behavior depend on that provider.
 
-**Architecture:** Add a provider-specific client/parser and a separate `AgricultureUpdateCoordinator`. The coordinator exists only when `enable_agriculture_advisories` is true, treats every provider failure as non-fatal, keeps source attribution separate, and exposes concise per-location/per-crop entities rather than raw nationwide payloads. CWA remains the authoritative weather source; agricultural threshold evaluations are explicitly marked as platform-issued or OpenCWA-derived guidance.
+**Architecture:** Add a provider-specific client/parser and a separate `AgricultureUpdateCoordinator`. The coordinator exists only when `enable_agriculture_advisories` is true, treats every provider failure as non-fatal, keeps source attribution separate, and exposes concise per-location/per-crop entities rather than raw nationwide payloads. CWA remains the authoritative weather source; agricultural threshold evaluations are explicitly marked as platform-issued or Uninus OpenCWA-derived guidance.
 
 **Tech Stack:** Python, Home Assistant config entries/options, `requests`, `DataUpdateCoordinator`, pytest-style unit tests.
 
@@ -41,7 +41,7 @@
 - Modify: `custom_components/opencwb/__init__.py`
 - Test: `tests/test_kcg_agriculture.py`
 
-1. Write a failing test proving disabled agriculture creates no coordinator and existing OpenCWA setup remains independent.
+1. Write a failing test proving disabled agriculture creates no coordinator and existing Uninus OpenCWA setup remains independent.
 2. Write a failing test proving enabled-provider exceptions return unavailable/stale agriculture data rather than raising `UpdateFailed` for weather.
 3. Implement a separate optional coordinator with city resolution, per-entry crop/town filtering, source timestamp/data-age diagnostics, and last-success metadata.
 4. Run focused and full tests.
@@ -95,7 +95,7 @@
 - Modify: `custom_components/opencwb/manifest.json`
 - Modify: `custom_components/opencwb/core/__version__.py`
 
-Document opt-in behavior, provider/source attribution, supported/unsupported crop semantics, Note classification, stale handling, entity examples, notification automation, API/token limitations, and that OpenCWA remains fully functional when disabled or unavailable.
+Document opt-in behavior, provider/source attribution, supported/unsupported crop semantics, Note classification, stale handling, entity examples, notification automation, API/token limitations, and that Uninus OpenCWA remains fully functional when disabled or unavailable.
 
 ### Task 8: Verification and delivery
 

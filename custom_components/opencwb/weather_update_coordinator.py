@@ -1,4 +1,4 @@
-"""Weather data coordinator for the OpenCWB (OCWB) service."""
+"""Weather data coordinator for the Uninus OpenCWA (OCWB) service."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -66,7 +66,7 @@ class ObservationFallbackCurrent:
 
 
 class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Weather data update coordinator for OpenCWB."""
+    """Weather data update coordinator for Uninus OpenCWA."""
 
     def __init__(
         self,
@@ -97,7 +97,7 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch weather data from OpenCWB API."""
+        """Fetch weather data from Uninus OpenCWA API."""
         data: dict[str, Any] = {}
         try:
             weather_response = await self._get_ocwb_weather()
@@ -220,12 +220,12 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             observation_current = self._fetch_observation_fallback_current()
         except Exception as exc:
-            _LOGGER.warning("OpenCWB observation fallback failed (%s)", type(exc).__name__)
+            _LOGGER.warning("Uninus OpenCWA observation fallback failed (%s)", type(exc).__name__)
             observation_current = None
         return LegacyWeather(weather.weather, forecast.forecast.weathers, observation_current)
 
     def _convert_weather_response(self, weather_response) -> dict[str, Any]:
-        """Convert OpenCWB API response to HA weather entity format."""
+        """Convert Uninus OpenCWA API response to HA weather entity format."""
         current = weather_response.current
         legacy_current = getattr(weather_response, "legacy_current", None)
         fallback_current = getattr(weather_response, "fallback_current", None)
@@ -234,7 +234,7 @@ class WeatherUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         if pressure is None:
             _LOGGER.warning(
-                "OpenCWB pressure missing after fallback: current=%s legacy=%s fallback=%s fallback_type=%s",
+                "Uninus OpenCWA pressure missing after fallback: current=%s legacy=%s fallback=%s fallback_type=%s",
                 getattr(current, "pressure", None),
                 getattr(legacy_current, "pressure", None) if legacy_current is not None else None,
                 getattr(fallback_current, "pressure", None) if fallback_current is not None else None,

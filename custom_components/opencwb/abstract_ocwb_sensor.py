@@ -17,7 +17,7 @@ from .const import (
 
 
 class AbstractOpenCWBSensor(SensorEntity):
-    """Abstract class for an OpenCWB sensor."""
+    """Abstract class for an Uninus OpenCWA sensor."""
 
     def __init__(
         self,

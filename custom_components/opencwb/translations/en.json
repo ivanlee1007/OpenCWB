@@ -25,8 +25,8 @@
           "enable_agriculture_advisories": "Enable optional KCG agricultural guidance",
           "agriculture_token": "KCG agriculture token (optional; required for ET0/Kc/ETc)"
         },
-        "description": "Set up OpenCWA. Agricultural guidance is optional; weather, forecasts and warnings remain operational when it is disabled or unavailable.",
-        "title": "OpenCWA"
+        "description": "Set up Uninus OpenCWA. Agricultural guidance is optional; weather, forecasts and warnings remain operational when it is disabled or unavailable.",
+        "title": "Uninus OpenCWA"
       }
     }
   },
@@ -59,7 +59,7 @@
       "step": {
         "user": {
           "title": "Add crop",
-          "description": "Add a crop, planting batch, or field to this OpenCWA farm. You can add as many crop records as needed.",
+          "description": "Add a crop, planting batch, or field to this Uninus OpenCWA farm. You can add as many crop records as needed.",
           "data": {
             "crop_name": "Crop name (search the list or enter a custom value)",
             "growth_stage": "Growth stage (optional)",

@@ -1,4 +1,4 @@
-"""Support for the OpenCWB (OCWB) service."""
+"""Support for the Uninus OpenCWA (OCWB) service."""
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.weather import Forecast, WeatherEntityFeature, SingleCoordinatorWeatherEntity
@@ -44,7 +44,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up OpenCWB weather entity based on a config entry."""
+    """Set up Uninus OpenCWA weather entity based on a config entry."""
     domain_data = hass.data[DOMAIN][config_entry.entry_id]
     name = domain_data[ENTRY_NAME]
     weather_coordinator = domain_data[ENTRY_WEATHER_COORDINATOR]
@@ -97,7 +97,7 @@ class OpenCWBWeatherFreshness(SensorEntity):
 
 
 class OpenCWBWeather(SingleCoordinatorWeatherEntity[WeatherUpdateCoordinator]):
-    """Implementation of an OpenCWB weather entity."""
+    """Implementation of an Uninus OpenCWA weather entity."""
 
     _attr_attribution = ATTRIBUTION
     _attr_native_temperature_unit = UnitOfTemperature.CELSIUS

@@ -1,4 +1,4 @@
-"""Support for the OpenCWB (OCWB) service."""
+"""Support for the Uninus OpenCWA (OCWB) service."""
 from homeassistant.const import ATTR_ATTRIBUTION
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo
@@ -45,7 +45,7 @@ from .agriculture_state import agriculture_sensor_available
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up OpenCWB sensor entities based on a config entry."""
+    """Set up Uninus OpenCWA sensor entities based on a config entry."""
     domain_data = hass.data[DOMAIN][config_entry.entry_id]
     name = domain_data[ENTRY_NAME]
     weather_coordinator = domain_data[ENTRY_WEATHER_COORDINATOR]
@@ -178,7 +178,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
 
 class OpenCWBSensor(AbstractOpenCWBSensor):
-    """Implementation of an OpenCWB sensor."""
+    """Implementation of an Uninus OpenCWA sensor."""
 
     def __init__(
         self,
@@ -207,7 +207,7 @@ class OpenCWBSensor(AbstractOpenCWBSensor):
 
 
 class OpenCWBForecastSensor(AbstractOpenCWBSensor):
-    """Implementation of an OpenCWB forecast sensor."""
+    """Implementation of an Uninus OpenCWA forecast sensor."""
 
     def __init__(
         self,
@@ -362,8 +362,8 @@ class OpenCWBAgricultureSensor(AbstractOpenCWBSensor):
         self._attr_device_info = DeviceInfo(
             entry_type=DeviceEntryType.SERVICE,
             identifiers={(DOMAIN, device_id)},
-            manufacturer="OpenCWA with 高雄農來訊",
-            name=f"OpenCWA 農業氣象補充 - {crop_name}",
+            manufacturer="Uninus OpenCWA with 高雄農來訊",
+            name=f"Uninus OpenCWA 農業氣象補充 - {crop_name}",
         )
 
     def _profile_data(self):

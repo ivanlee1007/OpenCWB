@@ -1,8 +1,8 @@
-# OpenCWA 1.5.0 Multi-Crop Agriculture Plan
+# Uninus OpenCWA 1.5.0 Multi-Crop Agriculture Plan
 
 ## Product model
 
-- One OpenCWA config entry represents one farm/location and shared CWA/provider configuration.
+- One Uninus OpenCWA config entry represents one farm/location and shared CWA/provider configuration.
 - Each crop is a Home Assistant native `crop` config subentry.
 - Users can repeatedly add crops and natively reconfigure or remove each crop.
 - Each crop subentry stores:
