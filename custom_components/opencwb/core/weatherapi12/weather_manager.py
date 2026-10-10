@@ -445,9 +445,7 @@ class WeatherManager:
             assert isinstance(limit, int), "'limit' must be an int or None"
             if limit < 1:
                 raise ValueError("'limit' must be None or greater than zero")
-        params = {'locationName': urllib.parse.quote_plus(name)}
-        if limit is not None:
-            params['cnt'] = limit
+        params = {'LocationName': name}
         if interval == 'hourly':
             uri = loc_id
         elif interval == 'daily':
@@ -458,6 +456,8 @@ class WeatherManager:
         _, json_data = self.http_client.get_json(uri, params=params)
         fc = forecast.Forecast.from_dict(json_data)
         if fc is not None:
+            if limit is not None:
+                fc.weathers = fc.weathers[:limit]
             fc.interval = interval
             return forecaster.Forecaster(fc)
         else:
@@ -703,16 +703,9 @@ class WeatherManager:
         # for lon/lat/locationName/interval requests and makes the config entry fail
         # during first refresh.
         uri = ONE_CALL_URI
-        params = {
-            'lon': lon,
-            'lat': lat,
-            'locationName': loc,
-            'interval': intvl}
-        for key , value in kwargs.items():
-            if key == 'exclude':
-                params['exclude'] = value
-            elif key == 'units':
-                params['units'] = value
+        # The CWA dataset is selected by city, not coordinates or OWM options.
+        # Interval is handled by the coordinator's district forecast request.
+        params = {'LocationName': loc}
 
         _, json_data = self.http_client.get_json(uri, params=params)
 
